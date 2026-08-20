@@ -531,6 +531,12 @@ select{cursor:pointer}
 .helpsec li{margin-bottom:4px}
 .overlay .big{font-size:30px;font-weight:900;letter-spacing:-.03em;margin-bottom:10px}
 .overlay .sub{color:var(--muted);font-size:14px;line-height:1.7}
+.credit{
+  position:fixed;right:11px;bottom:7px;z-index:4;
+  font-size:9.5px;font-weight:600;letter-spacing:.08em;
+  color:var(--muted);opacity:.32;pointer-events:none;user-select:none;
+}
+
 .toast{
   position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:40;
   background:var(--surface);border:1px solid var(--line2);border-radius:12px;
