@@ -1,0 +1,17 @@
+{
+  "name": "halligalli",
+  "version": "1.0.0",
+  "private": true,
+  "description": "할리갈리 — 종 대신 과일 이름을 타자로 치는 온라인 대전판",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
