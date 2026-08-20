@@ -41,7 +41,7 @@ let flashInfo = null, flashUntil = 0, verdictTimer = null;
 
 /* ───────────── 소리 ───────────── */
 let actx = null;
-let muted = localStorage.getItem('hgMute') === '1';
+let muted = localStorage.getItem('hgMute') !== '0';   // 기본은 무음
 function setMuted(v) {
   muted = v;
   localStorage.setItem('hgMute', v ? '1' : '0');

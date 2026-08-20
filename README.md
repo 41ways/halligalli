@@ -101,7 +101,7 @@ npx cloudflared tunnel --url http://localhost:8788
 
 색은 전부 CSS 변수로 빠져 있어서, `public/style.css` 아래쪽 `html[data-theme="…"]` 블록만 손대면 새 테마를 추가할 수 있다.
 
-소리는 상단 🔊 버튼으로 끄고 켠다.
+소리는 **기본이 무음**이다. 상단 🔇 버튼을 누르면 켜지고, 선택은 브라우저에 저장된다.
 
 ## 방 옵션 (방장)
 
