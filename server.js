@@ -19,26 +19,33 @@ const FRUITS = ['banana', 'lime', 'strawberry', 'grape'];
 // 정품 할리갈리 분포: 과일당 1개×5, 2개×3, 3개×3, 4개×2, 5개×1 = 14장
 const COUNT_DIST = [1, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 5];
 
-/* ── 익스트림 카드 구성 ────────────────────────────────
-   실물 카드처럼 한 장에 여러 과일이 섞여 있고, 배치(=디자인)가 같은 카드가
-   두 장 깔리면 종을 칠 수 있다. 아래 표만 고치면 카드 구성이 바뀐다.
-   각 줄 = 카드 한 종류의 과일 배치, copies = 그 카드가 덱에 몇 장 들어가는지. */
-const DESIGNS = [
-  { f: ['strawberry'],                                              copies: 4 },
-  { f: ['lime'],                                                    copies: 4 },
-  { f: ['grape'],                                                   copies: 4 },
-  { f: ['banana'],                                                  copies: 4 },
-  { f: ['strawberry', 'strawberry', 'strawberry'],                  copies: 3 },
-  { f: ['banana', 'grape', 'grape', 'grape'],                       copies: 4 },
-  { f: ['banana', 'lime', 'lime', 'lime'],                          copies: 4 },
-  { f: ['strawberry', 'grape', 'grape', 'grape'],                   copies: 4 },
-  { f: ['strawberry', 'lime', 'lime'],                              copies: 3 },
-  { f: ['lime', 'grape', 'grape', 'grape'],                         copies: 4 },
-  { f: ['banana', 'grape', 'grape', 'grape', 'grape'],              copies: 4 },
-  { f: ['strawberry', 'banana', 'lime', 'lime', 'lime'],            copies: 4 },
-  { f: ['strawberry', 'lime', 'grape', 'grape', 'grape', 'grape'],  copies: 4 },
-  { f: ['banana', 'banana', 'banana', 'grape', 'grape', 'grape'],   copies: 4 },
-];
+/* ── 익스트림 과일 카드 ─────────────────────────────
+   한 장에 과일 종류가 1~3가지 들어가고, 같은 종류는 하나씩만 그려진다.
+   '같은 배치' = 그려진 과일 조합이 똑같은 카드, 즉 d 가 같은 카드.
+      과일 1종 카드  … 4종(과일마다 하나씩) × 4장 = 16
+      과일 2종 카드  … 6종(2가지 조합 전부) × 4장 = 24
+      과일 3종 카드  … 4종(딸바포·딸바라·딸라포·라바포) × 6장 = 24
+   총 과일 64장 + 동물 8장 = 72장.
+   장수를 바꾸려면 EX_COPIES 만 고치면 된다. */
+const EX_COPIES = { 1: 4, 2: 4, 3: 6 };
+
+function exDesigns() {
+  const out = [];
+  const combos = (k) => {
+    const res = [];
+    const walk = (start, acc) => {
+      if (acc.length === k) { res.push(acc.slice()); return; }
+      for (let i = start; i < FRUITS.length; i++) { acc.push(FRUITS[i]); walk(i + 1, acc); acc.pop(); }
+    };
+    walk(0, []);
+    return res;
+  };
+  for (const k of [1, 2, 3]) {
+    for (const c of combos(k)) out.push({ f: c, copies: EX_COPIES[k] });
+  }
+  return out;
+}
+
 const ANIMALS = ['elephant', 'monkey', 'pig'];
 const ANIMAL_COPIES = { elephant: 3, monkey: 3, pig: 2 };
 
@@ -98,9 +105,10 @@ function shuffle(a) {
 function makeDeck(mode) {
   const deck = [];
   if (mode === 'extreme') {
-    DESIGNS.forEach((d, i) => {
-      for (let c = 0; c < d.copies; c++) deck.push({ d: 'd' + i, f: d.f.slice() });
-    });
+    for (const d of exDesigns()) {
+      const key = d.f.join('+');
+      for (let c = 0; c < d.copies; c++) deck.push({ d: key, f: d.f.slice() });
+    }
     for (const a of ANIMALS) {
       for (let c = 0; c < ANIMAL_COPIES[a]; c++) deck.push({ d: 'a' + a, sp: a });
     }
@@ -227,18 +235,18 @@ function extremeState(room) {
   const s = sums(room);
   const up = new Set(tops.filter(c => c.sp).map(c => c.sp));
 
-  const seen = new Set();
-  let pair = false;
+  const seen = new Set(), pairs = new Set();
   for (const c of tops) {
     if (c.sp) continue;
-    if (seen.has(c.d)) pair = true;             // 배치가 똑같은 카드 두 장
+    if (seen.has(c.d)) pairs.add(c.d);          // 그려진 조합이 똑같은 카드 두 장
     seen.add(c.d);
   }
 
   return {
     sums: s,
+    pairs,
     ok: {
-      pair,
+      pair: pairs.size > 0,
       pig: up.has('pig'),
       elephant: up.has('elephant') && s.strawberry === 0,
       monkey: up.has('monkey') && s.lime === 0,
@@ -481,8 +489,8 @@ function doCall(room, playerId, rawWord) {
     correct = count === 5;
   } else {
     const x = extremeState(room);
-    correct = !!x.ok[label];
-    reason = label === 'pair' ? 'pair' : (x.up.has(label) ? label : 'noanimal');
+    if (label === 'pair') { correct = x.ok.pair; reason = 'pair'; }
+    else { correct = x.ok[label]; reason = x.up.has(label) ? label : 'noanimal'; }
   }
 
   room.resolving = true;

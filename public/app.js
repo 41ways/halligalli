@@ -12,7 +12,7 @@ const F = Object.fromEntries(FRUITS.map(f => [f.id, f]));
 /* 익스트림 동물 카드 */
 const SP = {
   pair:     { ko:'짝',     emoji:'🃏', names:['짝','같다','pair','same'],
-              short:'같은 배치 2장', hint:'배치가 똑같은 카드 두 장이면 «짝»' },
+              short:'똑같은 카드 2장', hint:'그려진 과일 조합이 똑같은 카드 두 장' },
   elephant: { ko:'코끼리', emoji:'🐘', names:['코끼리','elephant'],
               short:'딸기 0개일 때', hint:'딸기가 하나도 없으면 «코끼리»' },
   monkey:   { ko:'원숭이', emoji:'🐒', names:['원숭이','monkey'],
@@ -45,9 +45,9 @@ const $ = id => document.getElementById(id);
 const el = {};
 ['scLogin','scLobby','scGame','inName','inCode','btnCreate','btnJoin','loginHint',
  'roomCode','btnCopy','lobbyPlayers','hostBox','optDiff','optLimit',
- 'btnAddBot','btnStart','lobbyHint','barCode','btnLeave','tally',
+ 'btnAddBot','btnStart','lobbyHint','barCode','btnLeave',
  'entry','btnFlip','flipTimer','status','log','overlay','ovTitle','ovSub','btnAgain',
- 'btnToLobby','toast','verdict','ovRank','theme','themeGame','board','slots','bell','btnSound','bigToggle','btnGo','waitMsg','turnNow','startGate','spChip','optMode','modePick'].forEach(k => el[k] = $(k));
+ 'btnToLobby','toast','verdict','ovRank','theme','themeGame','board','slots','bell','btnSound','bigToggle','btnGo','waitMsg','turnNow','startGate','optMode','modePick','btnHelp','btnHelpClose','help','helpTitle','helpBody'].forEach(k => el[k] = $(k));
 
 let ws = null, me = null, S = null, clockOffset = 0;
 let flashInfo = null, flashUntil = 0, verdictTimer = null;
@@ -321,22 +321,6 @@ function renderGame() {
 
   layoutBoard();
 
-  // 클릭으로는 종을 칠 수 없다 — 오직 타자로만. 아래는 '이렇게 치면 된다'는 안내.
-  el.tally.innerHTML = isExtreme()
-    ? Object.keys(SP).map(k => `
-        <div class="chip"><span class="em">${SP[k].emoji}</span><span>${SP[k].ko}</span>
-        <span class="alt">${SP[k].short}</span></div>`).join('')
-    : FRUITS.map(f => `
-        <div class="chip"><span class="em">${f.emoji}</span><span>${f.ko}</span></div>`).join('');
-
-  const animals = S.animals || [];
-  el.spChip.hidden = !animals.length || S.phase !== 'playing';
-  if (animals.length) {
-    el.spChip.className = 'spchip ' + animals[0];
-    el.spChip.innerHTML = animals
-      .map(a => `<span>${SP[a].emoji}</span><span>${SP[a].hint}</span>`).join('<span class="sep">·</span>');
-  }
-
   const mine = myP();
   const myTurn = S.turn === me && !S.resolving && S.phase === 'playing';
   el.btnFlip.classList.toggle('on', myTurn && !S.frozen);
@@ -480,7 +464,7 @@ function onEvent(m) {
       log(`${info ? info.emoji : '🔔'} <b>${name}</b> 성공 → +${m.gained}장${m.rt != null ? ` <span style="opacity:.6">(${m.rt}ms)</span>` : ''}`, 'win');
     } else {
       const why =
-        m.reason === 'pair'     ? '배치가 같은 카드가 두 장이 아닙니다'
+        m.reason === 'pair'     ? '똑같은 카드가 두 장이 아닙니다'
       : m.reason === 'elephant' ? '딸기가 아직 남아 있습니다'
       : m.reason === 'monkey'   ? '라임이 아직 남아 있습니다'
       : m.reason === 'pig'      ? '돼지가 없습니다'
@@ -646,6 +630,74 @@ el.btnLeave.addEventListener('click', () => {
   location.hash = '';
   location.reload();
 });
+
+/* ───────────── 도움말 ───────────── */
+function helpHTML() {
+  const ex = isExtreme();
+  const common = `
+    <div class="helpsec">
+      <h3>공통</h3>
+      <ul>
+        <li>내 차례에 카드를 <b>클릭</b>해서 한 장 깐다</li>
+        <li>칠 조건이 생기면 <b>아무도 카드를 못 깐다</b> — 누가 칠 때까지 판이 멈춘다</li>
+        <li>맞히면 펼쳐진 카드를 전부 가져가고, 틀리면 다른 사람에게 한 장씩 준다</li>
+        <li>손패와 앞면이 모두 떨어지면 탈락. 마지막까지 남으면 승리</li>
+        <li>사람이 2명 이상이면 봇은 종을 치지 않는다</li>
+      </ul>
+    </div>`;
+
+  if (!ex) {
+    return `<span class="helpmode">기본 · 56장</span>
+      <div class="helpsec">
+        <h3>이럴 때 친다</h3>
+        <div class="helplist">
+          <div class="row"><span class="key">과일 이름</span>
+            <span class="txt">펼쳐진 카드에서 <b>같은 과일이 정확히 5개</b>일 때</span></div>
+        </div>
+      </div>
+      <div class="helpsec">
+        <h3>칠 수 있는 말</h3>
+        <div class="helplist">
+          ${FRUITS.map(f => `<div class="row"><span class="key">${f.emoji} ${f.ko}</span>
+            <span class="txt">${f.names.filter(n => /[a-z]/.test(n)).join(' · ')}</span></div>`).join('')}
+        </div>
+      </div>${common}`;
+  }
+
+  return `<span class="helpmode">익스트림 · 72장</span>
+    <div class="helpsec">
+      <h3>이럴 때 친다</h3>
+      <div class="helplist">
+        <div class="row"><span class="key">🃏 짝</span>
+          <span class="txt">그려진 <b>과일 조합이 똑같은 카드가 두 장</b> 펼쳐졌을 때</span></div>
+        <div class="row"><span class="key">🐘 코끼리</span>
+          <span class="txt">코끼리가 있고, 테이블에 <b>딸기가 하나도 없을</b> 때</span></div>
+        <div class="row"><span class="key">🐒 원숭이</span>
+          <span class="txt">원숭이가 있고, 테이블에 <b>라임이 하나도 없을</b> 때</span></div>
+        <div class="row"><span class="key">🐷 돼지</span>
+          <span class="txt">돼지가 보이면 <b>조건 없이</b> 바로</span></div>
+      </div>
+    </div>
+    <div class="helpsec">
+      <h3>카드 구성</h3>
+      <ul>
+        <li>한 장에 과일 종류가 <b>1~3가지</b>, 같은 종류는 하나씩만 그려진다</li>
+        <li>과일 1종 4가지 × 4장 · 2종 6가지 × 4장 · 3종 4가지 × 6장 = 64장</li>
+        <li>코끼리 3 · 원숭이 3 · 돼지 2 = 8장</li>
+        <li>익스트림에는 <b>“5개” 규칙이 없다</b>. 과일 이름을 쳐도 아무 일도 없다</li>
+      </ul>
+    </div>${common}`;
+}
+
+function openHelp() {
+  el.helpTitle.textContent = '할리갈리 — 규칙';
+  el.helpBody.innerHTML = helpHTML();
+  el.help.hidden = false;
+}
+el.btnHelp.addEventListener('click', openHelp);
+el.btnHelpClose.addEventListener('click', () => { el.help.hidden = true; el.entry.focus(); });
+el.help.addEventListener('click', e => { if (e.target === el.help) el.help.hidden = true; });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') el.help.hidden = true; });
 
 /* ───────────── 테마 ───────────── */
 function applyTheme(v) {
