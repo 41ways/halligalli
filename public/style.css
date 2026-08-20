@@ -139,6 +139,42 @@ select{cursor:pointer}
 }
 .boardbar .spacer{flex:1}
 
+/* 모드 고르기 */
+.modepick{display:flex;gap:8px;margin-bottom:14px}
+.mp{
+  flex:1;font:inherit;cursor:pointer;text-align:left;
+  display:flex;flex-direction:column;gap:1px;
+  background:var(--raise);border:1px solid var(--line2);border-radius:12px;
+  padding:10px 13px;color:var(--text);transition:all .15s;
+}
+.mp b{font-size:14px;font-weight:800}
+.mp small{font-size:11px;color:var(--muted);font-weight:500}
+.mp:hover{background:var(--raise2)}
+.mp.on{background:var(--gold);color:var(--onaccent);border-color:transparent}
+.mp.on small{color:color-mix(in srgb,var(--onaccent) 62%,transparent)}
+
+/* 지금 깔린 특수 카드가 무엇을 시키는지 */
+.spchip{
+  display:flex;align-items:center;gap:7px;font-size:13px;font-weight:800;
+  border-radius:99px;padding:6px 14px;border:1px solid;white-space:nowrap;
+  animation:vpop .24s ease-out;
+}
+.spchip .sep{opacity:.45;margin:0 2px}
+.spchip.elephant{background:color-mix(in srgb,var(--hit) 20%,var(--surface));border-color:var(--hit);color:var(--text)}
+.spchip.monkey{background:color-mix(in srgb,var(--gold) 22%,var(--surface));border-color:var(--gold);color:var(--text)}
+.spchip.pig{background:color-mix(in srgb,var(--miss) 22%,var(--surface));border-color:var(--miss);color:var(--text)}
+
+/* 특수 카드 얼굴 */
+.card.special{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2%;
+  background:var(--card);
+}
+.card.special .sp{font-size:46cqw;line-height:1;filter:drop-shadow(0 1px 2px rgba(0,0,0,.2))}
+.card.special .splabel{font-size:15cqw;font-weight:900;color:#4a4436;letter-spacing:-.02em}
+.card.special.elephant{box-shadow:inset 0 0 0 5cqw rgba(93,220,154,.6),0 9px 22px -12px rgba(0,0,0,.9)}
+.card.special.monkey{box-shadow:inset 0 0 0 5cqw rgba(242,200,91,.65),0 9px 22px -12px rgba(0,0,0,.9)}
+.card.special.pig{box-shadow:inset 0 0 0 5cqw rgba(255,111,111,.6),0 9px 22px -12px rgba(0,0,0,.9)}
+
 /* 지금 누구 차례인지 — 보드 바로 위에 크게 */
 .turnnow{
   display:flex;align-items:center;gap:8px;

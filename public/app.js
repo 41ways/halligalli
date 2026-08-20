@@ -8,8 +8,20 @@ const FRUITS = [
   { id:'grape',      ko:'포도',   emoji:'🍇', names:['포도','grape','grapes'] },
 ];
 const F = Object.fromEntries(FRUITS.map(f => [f.id, f]));
-const NAME2ID = {};
-FRUITS.forEach(f => f.names.forEach(n => NAME2ID[n] = f.id));
+
+/* 익스트림 동물 카드 */
+const SP = {
+  pair:     { ko:'짝',     emoji:'🃏', names:['짝','같다','pair','same'],
+              short:'같은 배치 2장', hint:'배치가 똑같은 카드 두 장이면 «짝»' },
+  elephant: { ko:'코끼리', emoji:'🐘', names:['코끼리','elephant'],
+              short:'딸기 0개일 때', hint:'딸기가 하나도 없으면 «코끼리»' },
+  monkey:   { ko:'원숭이', emoji:'🐒', names:['원숭이','monkey'],
+              short:'라임 0개일 때', hint:'라임이 하나도 없으면 «원숭이»' },
+  pig:      { ko:'돼지',   emoji:'🐷', names:['돼지','pig'],
+              short:'무조건',        hint:'돼지가 보이면 조건 없이 «돼지»' },
+};
+const isExtreme = () => S && S.cfg && S.cfg.mode === 'extreme';
+const modeFruits = () => FRUITS;
 
 /* 원작 카드처럼 과일이 흩어져 배치되는 좌표 [x%, y%, 회전deg] */
 const PIPS = {
@@ -18,6 +30,7 @@ const PIPS = {
   3: [[32,26,-15],[50,50,5],[68,74,13]],
   4: [[31,29,-11],[69,29,9],[31,71,8],[69,71,-9]],
   5: [[30,26,-13],[70,26,10],[50,50,-3],[30,74,9],[70,74,-10]],
+  6: [[31,22,-12],[69,22,10],[31,50,7],[69,50,-8],[31,78,-6],[69,78,11]],
 };
 
 /** 받침이 있으면 앞쪽, 없으면 뒤쪽 조사를 붙인다 — "라임은 / 딸기는" */
@@ -34,7 +47,7 @@ const el = {};
  'roomCode','btnCopy','lobbyPlayers','hostBox','optDiff','optLimit',
  'btnAddBot','btnStart','lobbyHint','barCode','btnLeave','tally',
  'entry','btnFlip','flipTimer','status','log','overlay','ovTitle','ovSub','btnAgain',
- 'btnToLobby','toast','verdict','ovRank','theme','themeGame','board','slots','bell','btnSound','bigToggle','btnGo','waitMsg','turnNow','startGate'].forEach(k => el[k] = $(k));
+ 'btnToLobby','toast','verdict','ovRank','theme','themeGame','board','slots','bell','btnSound','bigToggle','btnGo','waitMsg','turnNow','startGate','spChip','optMode','modePick'].forEach(k => el[k] = $(k));
 
 let ws = null, me = null, S = null, clockOffset = 0;
 let flashInfo = null, flashUntil = 0, verdictTimer = null;
@@ -155,6 +168,7 @@ function renderLobby() {
     </div>`).join('');
 
   el.hostBox.hidden = !isHost();
+  el.optMode.value = S.cfg.mode || 'basic';
   el.optDiff.value = S.cfg.botDiff;
   el.optLimit.value = String(S.cfg.turnLimit);
   el.btnStart.disabled = S.players.length < 2;
@@ -172,11 +186,19 @@ el.lobbyPlayers.addEventListener('click', e => {
 
 /* ── 카드 ── */
 function pipsHTML(card) {
-  return (PIPS[card.n] || []).map(([x, y, r]) =>
-    `<span class="pip" style="left:${x}%;top:${y}%;transform:rotate(${r}deg)">${F[card.f].emoji}</span>`
-  ).join('');
+  const fs = card.f || [];
+  const slots = PIPS[fs.length] || PIPS[6];
+  return fs.map((fid, i) => {
+    const [x, y, r] = slots[i] || [50, 50, 0];
+    return `<span class="pip" style="left:${x}%;top:${y}%;transform:rotate(${r}deg)">${F[fid].emoji}</span>`;
+  }).join('');
 }
 function cardFace(card) {
+  if (card.sp) {
+    const sp = SP[card.sp];
+    return `<div class="top card special ${card.sp}">
+      <span class="sp">${sp.emoji}</span><span class="splabel">${sp.ko}</span></div>`;
+  }
   return `<div class="top card">${pipsHTML(card)}</div>`;
 }
 /** 장수에 비례해 더미 두께를 만든다 — 한 장 낼 때마다 실제로 얇아진다 */
@@ -300,10 +322,20 @@ function renderGame() {
   layoutBoard();
 
   // 클릭으로는 종을 칠 수 없다 — 오직 타자로만. 아래는 '이렇게 치면 된다'는 안내.
-  el.tally.innerHTML = FRUITS.map(f => `
-    <div class="chip">
-      <span class="em">${f.emoji}</span><span>${f.ko}</span>
-    </div>`).join('');
+  el.tally.innerHTML = isExtreme()
+    ? Object.keys(SP).map(k => `
+        <div class="chip"><span class="em">${SP[k].emoji}</span><span>${SP[k].ko}</span>
+        <span class="alt">${SP[k].short}</span></div>`).join('')
+    : FRUITS.map(f => `
+        <div class="chip"><span class="em">${f.emoji}</span><span>${f.ko}</span></div>`).join('');
+
+  const animals = S.animals || [];
+  el.spChip.hidden = !animals.length || S.phase !== 'playing';
+  if (animals.length) {
+    el.spChip.className = 'spchip ' + animals[0];
+    el.spChip.innerHTML = animals
+      .map(a => `<span>${SP[a].emoji}</span><span>${SP[a].hint}</span>`).join('<span class="sep">·</span>');
+  }
 
   const mine = myP();
   const myTurn = S.turn === me && !S.resolving && S.phase === 'playing';
@@ -329,7 +361,9 @@ function renderGame() {
   document.querySelector('.table').classList.toggle('myturn', myTurnNow);
 
   if (mine && mine.out) el.entry.placeholder = '탈락했습니다 — 관전 중';
-  else el.entry.placeholder = '같은 과일 5개를 찾으면 이름을 치세요';
+  else el.entry.placeholder = isExtreme()
+    ? '짝 · 코끼리 · 원숭이 · 돼지 — 조건이 맞으면 치세요'
+    : '같은 과일 5개를 찾으면 이름을 치세요';
 }
 
 function esc(t) {
@@ -427,7 +461,8 @@ function onEvent(m) {
   }
 
   if (m.kind === 'call') {
-    const f = F[m.fruit];
+    const info = F[m.label] || SP[m.label];
+    const what = info ? `${info.emoji} ${info.ko}` : '?';
     const name = who(m.by);
     const mine = m.by === me;
 
@@ -435,25 +470,34 @@ function onEvent(m) {
       setTimeout(() => animCollect(m.by), 0);
       markSeat(m.by, 'hit', `+${m.gained}`, 1900);
       showVerdict(
-        `<div class="vw">${f.emoji} ${mine ? '내가' : name} 종을 쳤다!</div>
-         <div class="vs">${f.ko} 5개 · <b>+${m.gained}장</b>${m.rt != null ? ` · ${m.rt}ms` : ''}</div>`,
+        `<div class="vw">${info ? info.emoji : '🔔'} ${mine ? '내가' : name} 종을 쳤다!</div>
+         <div class="vs">${info ? info.ko : ''} · <b>+${m.gained}장</b>${m.rt != null ? ` · ${m.rt}ms` : ''}</div>`,
         'ok', 1900);
       if (mine) { sfxRight(); flash('good'); } else sfxWrong();
       el.status.innerHTML = mine
-        ? `<span class="ok">성공!</span> ${f.emoji} ${f.ko} 5개 — <b>${m.gained}장</b> 획득${m.rt != null ? ` · ${m.rt}ms` : ''}`
-        : `<b>${name}</b>${hasBatchim(name) ? '이' : '가'} 먼저 <b>${f.ko}</b>${hasBatchim(f.ko) ? '을' : '를'} 외쳤습니다 — ${m.gained}장`;
-      log(`${f.emoji} <b>${name}</b> 성공 → +${m.gained}장${m.rt != null ? ` <span style="opacity:.6">(${m.rt}ms)</span>` : ''}`, 'win');
+        ? `<span class="ok">성공!</span> ${what} — <b>${m.gained}장</b> 획득${m.rt != null ? ` · ${m.rt}ms` : ''}`
+        : `<b>${name}</b>${hasBatchim(name) ? '이' : '가'} 먼저 <b>${info ? info.ko : ''}</b> 쳤습니다 — ${m.gained}장`;
+      log(`${info ? info.emoji : '🔔'} <b>${name}</b> 성공 → +${m.gained}장${m.rt != null ? ` <span style="opacity:.6">(${m.rt}ms)</span>` : ''}`, 'win');
     } else {
+      const why =
+        m.reason === 'pair'     ? '배치가 같은 카드가 두 장이 아닙니다'
+      : m.reason === 'elephant' ? '딸기가 아직 남아 있습니다'
+      : m.reason === 'monkey'   ? '라임이 아직 남아 있습니다'
+      : m.reason === 'pig'      ? '돼지가 없습니다'
+      : m.reason === 'noanimal' ? `${info ? info.ko : '그 동물'}가 테이블에 없습니다`
+      : info ? `${josa(info.ko, '은', '는')} ${m.count}개였습니다`
+      : '그런 건 없습니다';
+
       markSeat(m.by, 'miss', `−${m.given}`, 1700);
       showVerdict(
         `<div class="vw">✕ ${mine ? '내' : name} 오답</div>
-         <div class="vs">${f.emoji} ${josa(f.ko, '은', '는')} <b>${m.count}개</b>였습니다 · <b>−${m.given}장</b></div>`,
+         <div class="vs">${why} · <b>−${m.given}장</b></div>`,
         'no', 1700);
       if (mine) { sfxWrong(); flash('bad'); }
       el.status.innerHTML = mine
-        ? `<span class="no">틀렸어요!</span> ${josa(f.ko, '은', '는')} ${m.count}개 — 카드 ${m.given}장 지급`
-        : `<b>${name}</b> 오답 (${f.ko} ${m.count}개) — 카드를 받았습니다`;
-      log(`✕ <b>${name}</b> 오답 · ${f.ko} ${m.count}개 → −${m.given}장`, 'lose');
+        ? `<span class="no">틀렸어요!</span> ${why} — 카드 ${m.given}장 지급`
+        : `<b>${name}</b> 오답 — 카드를 받았습니다`;
+      log(`✕ <b>${name}</b> 오답 · ${why} → −${m.given}장`, 'lose');
     }
     el.entry.value = '';
   }
@@ -558,10 +602,22 @@ document.addEventListener('click', e => {
 
 /* ───────────── 접속/대기실 조작 ───────────── */
 const nameOf = () => el.inName.value.trim() || '플레이어';
+let createMode = localStorage.getItem('hgMode') === 'extreme' ? 'extreme' : 'basic';
+function paintMode() {
+  [...el.modePick.children].forEach(b => b.classList.toggle('on', b.dataset.mode === createMode));
+}
+el.modePick.addEventListener('click', e => {
+  const b = e.target.closest('.mp');
+  if (!b) return;
+  createMode = b.dataset.mode;
+  localStorage.setItem('hgMode', createMode);
+  paintMode();
+});
+paintMode();
 
 el.btnCreate.addEventListener('click', () => {
   localStorage.setItem('hgName', nameOf());
-  connect(() => send({ t: 'create', name: nameOf() }));
+  connect(() => send({ t: 'create', name: nameOf(), mode: createMode }));
 });
 el.btnJoin.addEventListener('click', () => {
   const code = el.inCode.value.trim().toUpperCase();
@@ -579,6 +635,7 @@ el.btnCopy.addEventListener('click', async () => {
 });
 el.btnAddBot.addEventListener('click', () => send({ t: 'addBot' }));
 el.btnStart.addEventListener('click', () => send({ t: 'start' }));
+el.optMode.addEventListener('change', () => send({ t: 'cfg', mode: el.optMode.value }));
 el.optDiff.addEventListener('change', () => send({ t: 'cfg', botDiff: el.optDiff.value }));
 el.optLimit.addEventListener('change', () => send({ t: 'cfg', turnLimit: +el.optLimit.value }));
 el.btnAgain.addEventListener('click', () => send({ t: 'again' }));

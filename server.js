@@ -16,8 +16,55 @@ const PUBLIC = path.join(__dirname, 'public');
 /* ─────────────────────────── 게임 상수 ─────────────────────────── */
 
 const FRUITS = ['banana', 'lime', 'strawberry', 'grape'];
-// 정품 할리갈리 분포: 과일당 1개×5, 2개×3, 3개×3, 4개×2, 5개×1 = 14장 → 총 56장
+// 정품 할리갈리 분포: 과일당 1개×5, 2개×3, 3개×3, 4개×2, 5개×1 = 14장
 const COUNT_DIST = [1, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 5];
+
+/* ── 익스트림 카드 구성 ────────────────────────────────
+   실물 카드처럼 한 장에 여러 과일이 섞여 있고, 배치(=디자인)가 같은 카드가
+   두 장 깔리면 종을 칠 수 있다. 아래 표만 고치면 카드 구성이 바뀐다.
+   각 줄 = 카드 한 종류의 과일 배치, copies = 그 카드가 덱에 몇 장 들어가는지. */
+const DESIGNS = [
+  { f: ['strawberry'],                                              copies: 4 },
+  { f: ['lime'],                                                    copies: 4 },
+  { f: ['grape'],                                                   copies: 4 },
+  { f: ['banana'],                                                  copies: 4 },
+  { f: ['strawberry', 'strawberry', 'strawberry'],                  copies: 3 },
+  { f: ['banana', 'grape', 'grape', 'grape'],                       copies: 4 },
+  { f: ['banana', 'lime', 'lime', 'lime'],                          copies: 4 },
+  { f: ['strawberry', 'grape', 'grape', 'grape'],                   copies: 4 },
+  { f: ['strawberry', 'lime', 'lime'],                              copies: 3 },
+  { f: ['lime', 'grape', 'grape', 'grape'],                         copies: 4 },
+  { f: ['banana', 'grape', 'grape', 'grape', 'grape'],              copies: 4 },
+  { f: ['strawberry', 'banana', 'lime', 'lime', 'lime'],            copies: 4 },
+  { f: ['strawberry', 'lime', 'grape', 'grape', 'grape', 'grape'],  copies: 4 },
+  { f: ['banana', 'banana', 'banana', 'grape', 'grape', 'grape'],   copies: 4 },
+];
+const ANIMALS = ['elephant', 'monkey', 'pig'];
+const ANIMAL_COPIES = { elephant: 3, monkey: 3, pig: 2 };
+
+const NAMES = {
+  banana:     ['바나나', 'banana'],
+  lime:       ['라임', 'lime', 'lemon', '레몬'],
+  strawberry: ['딸기', 'strawberry', 'berry'],
+  grape:      ['포도', 'grape', 'grapes'],
+  elephant:   ['코끼리', 'elephant'],
+  monkey:     ['원숭이', 'monkey'],
+  pig:        ['돼지', 'pig'],
+  pair:       ['짝', '같다', 'pair', 'same'],
+};
+
+const norm = w => String(w || '').trim().toLowerCase().replace(/\s+/g, '').slice(-24);
+
+/** 입력의 끝이 어떤 이름과 맞는지 — 가장 긴 것을 고른다 */
+function matchWord(word, keys) {
+  let best = null, len = 0;
+  for (const k of keys) {
+    for (const nm of NAMES[k]) {
+      if (nm.length > len && word.endsWith(nm)) { best = k; len = nm.length; }
+    }
+  }
+  return best;
+}
 
 const BOT = {
   easy:   { min: 1100, max: 2100, miss: 0.40, falseCall: 0.050, flip: [700, 1600] },
@@ -45,9 +92,23 @@ function shuffle(a) {
   return a;
 }
 
-function makeDeck() {
+
+
+/* 카드 한 장 = { d: 배치 id, f: [과일...] } · 동물 카드는 { d, sp: 동물 } */
+function makeDeck(mode) {
   const deck = [];
-  for (const f of FRUITS) for (const n of COUNT_DIST) deck.push({ f, n });
+  if (mode === 'extreme') {
+    DESIGNS.forEach((d, i) => {
+      for (let c = 0; c < d.copies; c++) deck.push({ d: 'd' + i, f: d.f.slice() });
+    });
+    for (const a of ANIMALS) {
+      for (let c = 0; c < ANIMAL_COPIES[a]; c++) deck.push({ d: 'a' + a, sp: a });
+    }
+  } else {
+    for (const f of FRUITS) for (const n of COUNT_DIST) {
+      deck.push({ d: f + ':' + n, f: Array(n).fill(f) });
+    }
+  }
   return shuffle(deck);
 }
 
@@ -81,7 +142,7 @@ function createRoom() {
     fiveSince: 0,
     winner: null,
     lock: {},
-    cfg: { botDiff: 'normal', turnLimit: 6000 },
+    cfg: { botDiff: 'normal', turnLimit: 6000, mode: 'basic' },
     timers: { turn: null, resume: null, nudge: null, bots: [] },
     lastActive: Date.now(),
   };
@@ -131,11 +192,72 @@ function sums(room) {
   for (const p of room.players) {
     if (p.out || !p.table.length) continue;
     const top = p.table[p.table.length - 1];
-    s[top.f] += top.n;
+    if (top.sp) continue;                       // 동물 카드는 과일이 아니다
+    for (const f of top.f) s[f]++;
   }
   return s;
 }
 const fivesOf = s => FRUITS.filter(f => s[f] === 5);
+
+function topCards(room) {
+  const out = [];
+  for (const p of room.players) {
+    if (p.out || !p.table.length) continue;
+    out.push(p.table[p.table.length - 1]);
+  }
+  return out;
+}
+
+/** 지금 테이블에 깔려 있는 동물 카드 */
+function animalsUp(room) {
+  if (room.cfg.mode !== 'extreme') return [];
+  const up = new Set(topCards(room).filter(c => c.sp).map(c => c.sp));
+  return ANIMALS.filter(a => up.has(a));
+}
+
+/**
+ * 익스트림 종 조건
+ *  - 같은 배치(같은 과일·같은 개수) 카드가 두 장 이상  → 그 과일 이름
+ *  - 코끼리가 있고 테이블에 딸기가 하나도 없음        → "코끼리"
+ *  - 원숭이가 있고 테이블에 라임이 하나도 없음        → "원숭이"
+ *  - 돼지가 있음 (조건 없음)                          → "돼지"
+ */
+function extremeState(room) {
+  const tops = topCards(room);
+  const s = sums(room);
+  const up = new Set(tops.filter(c => c.sp).map(c => c.sp));
+
+  const seen = new Set();
+  let pair = false;
+  for (const c of tops) {
+    if (c.sp) continue;
+    if (seen.has(c.d)) pair = true;             // 배치가 똑같은 카드 두 장
+    seen.add(c.d);
+  }
+
+  return {
+    sums: s,
+    ok: {
+      pair,
+      pig: up.has('pig'),
+      elephant: up.has('elephant') && s.strawberry === 0,
+      monkey: up.has('monkey') && s.lime === 0,
+    },
+    up,
+  };
+}
+
+/** 지금 칠 수 있는 말들 */
+function ringableWords(room) {
+  if (room.cfg.mode !== 'extreme') {
+    return fivesOf(sums(room)).map(f => ({ key: f, kind: 'five' }));
+  }
+  const x = extremeState(room);
+  const out = [];
+  if (x.ok.pair) out.push({ key: 'pair' });
+  for (const a of ANIMALS) if (x.ok[a]) out.push({ key: a });
+  return out;
+}
 
 /* ─────────────────────────── 통신 ─────────────────────────── */
 
@@ -157,6 +279,7 @@ function stateOf(room) {
     now: Date.now(),
     resolving: room.resolving,
     frozen: room.frozen,
+    animals: animalsUp(room),
     winner: room.winner,
     players: room.players.map(p => ({
       id: p.id, name: p.name, bot: p.bot, connected: p.connected,
@@ -193,7 +316,7 @@ function startGame(room) {
   const players = room.players;
   if (players.length < 2) return;
 
-  const deck = makeDeck();
+  const deck = makeDeck(room.cfg.mode);
   players.forEach((p, i) => {
     p.hand = []; p.table = []; p.out = false;
     p.hits = 0; p.misses = 0; p.best = null;
@@ -228,9 +351,8 @@ function beginTurn(room, fromIdx) {
   clearTimeout(room.timers.nudge); room.timers.nudge = null;
   if (room.phase !== 'playing' || room.resolving) return;
 
-  // 같은 과일 5개가 떠 있는 동안엔 아무도 다음 카드를 깔 수 없다.
-  // 누군가 종(=타자)을 칠 때까지 판이 멈춘다.
-  room.frozen = fivesOf(sums(room)).length > 0;
+  // 칠 수 있는 조건이 하나라도 성립하면, 누가 칠 때까지 아무도 카드를 못 깐다
+  room.frozen = ringableWords(room).length > 0;
 
   const n = room.players.length;
   if (!n) return;
@@ -294,52 +416,74 @@ function doFlip(room, playerId, auto) {
   beginTurn(room, idx + 1);
 }
 
-/** 테이블에 5가 있는지 보고 봇들의 반응을 예약한다 */
+/** 칠 거리가 생겼는지 보고 봇들의 반응을 예약한다 */
 function evaluate(room) {
   clearBotTimers(room);
   if (room.phase !== 'playing') return;
 
-  const s = sums(room);
-  const fives = fivesOf(s);
-  room.fiveSince = fives.length ? Date.now() : 0;
+  const win = ringableWords(room);
+  room.fiveSince = win.length ? Date.now() : 0;
 
   if (!botsMayCall(room)) return;      // 사람이 2명 이상 → 봇은 종을 치지 않는다
 
   const cfg = BOT[room.cfg.botDiff];
+  const s = sums(room);
+  const ex = room.cfg.mode === 'extreme' ? extremeState(room) : null;
+
   for (const p of room.players) {
     if (!p.bot || !inPlay(p)) continue;
 
-    if (fives.length) {
-      const fruit = pick(fives);
+    if (win.length) {
+      const word = NAMES[pick(win).key][0];
       if (Math.random() < cfg.miss) {
-        // 한 번 놓쳤어도 판이 길어지면 뒤늦게 알아채기도 한다
         if (Math.random() < 0.5) {
-          room.timers.bots.push(setTimeout(() => doCall(room, p.id, fruit), rnd(2300, 4300)));
+          room.timers.bots.push(setTimeout(() => doCall(room, p.id, word), rnd(2300, 4300)));
         }
         continue;
       }
-      room.timers.bots.push(setTimeout(() => doCall(room, p.id, fruit), rnd(cfg.min, cfg.max)));
+      room.timers.bots.push(setTimeout(() => doCall(room, p.id, word), rnd(cfg.min, cfg.max)));
     } else {
-      // 4개/6개처럼 아슬아슬할 때 가끔 잘못 외친다
-      const near = FRUITS.filter(f => s[f] === 4 || s[f] === 6);
+      // 아깝게 안 되는 상황에서 가끔 잘못 친다
+      const near = [];
+      if (ex) {
+        for (const a of ANIMALS) if (ex.up.has(a) && !ex.ok[a]) near.push(a);   // 조건 안 맞는 동물
+        if (!ex.ok.pair) near.push('pair');                                      // 짝이 아닌데 짝
+      } else {
+        for (const f of FRUITS) if (s[f] === 4 || s[f] === 6) near.push(f);
+      }
       if (near.length && Math.random() < cfg.falseCall) {
-        const f = pick(near);
-        room.timers.bots.push(setTimeout(() => doCall(room, p.id, f), rnd(cfg.min, cfg.max)));
+        room.timers.bots.push(setTimeout(() => doCall(room, p.id, NAMES[pick(near)][0]), rnd(cfg.min, cfg.max)));
       }
     }
   }
 }
 
-/** 종 치기 = 과일 이름 외치기 */
-function doCall(room, playerId, fruit) {
+/** 종 치기 = 이름 타자. 판정은 전부 서버가 한다. */
+function doCall(room, playerId, rawWord) {
   if (room.phase !== 'playing' || room.resolving) return;
-  if (!FRUITS.includes(fruit)) return;
   const p = room.players.find(x => x.id === playerId);
   if (!p || !inPlay(p)) return;
   if ((room.lock[p.id] || 0) > Date.now()) return;
 
+  const word = norm(rawWord);
+  if (!word) return;
+
+  const extreme = room.cfg.mode === 'extreme';
+  const keys = extreme ? ['pair', ...ANIMALS] : FRUITS;
+  const label = matchWord(word, keys);
+  if (!label) return;                       // 아무것과도 안 맞으면 친 게 아니다
+
   const s = sums(room);
-  const correct = s[fruit] === 5;
+  let correct = false, reason = 'count', count = null;
+
+  if (!extreme) {
+    count = s[label];
+    correct = count === 5;
+  } else {
+    const x = extremeState(room);
+    correct = !!x.ok[label];
+    reason = label === 'pair' ? 'pair' : (x.up.has(label) ? label : 'noanimal');
+  }
 
   room.resolving = true;
   clearAll(room);
@@ -353,7 +497,7 @@ function doCall(room, playerId, fruit) {
     p.hand.push(...shuffle(pot));
     p.hits++;
     if (rt != null && (p.best == null || rt < p.best)) p.best = rt;
-    payload = { kind: 'call', ok: true, by: p.id, fruit, gained: pot.length, rt };
+    payload = { kind: 'call', ok: true, by: p.id, label, gained: pot.length, rt };
     room.turn = p.id;                      // 다음 뒤집기는 이긴 사람부터
   } else {
     const targets = room.players.filter(q => q !== p && inPlay(q));
@@ -364,7 +508,7 @@ function doCall(room, playerId, fruit) {
     }
     p.misses++;
     room.lock[p.id] = Date.now() + WRONG_LOCK;
-    payload = { kind: 'call', ok: false, by: p.id, fruit, count: s[fruit], given };
+    payload = { kind: 'call', ok: false, by: p.id, label, count, given, reason };
   }
 
   ev(room, payload);
@@ -377,7 +521,7 @@ function doCall(room, playerId, fruit) {
     if (checkEnd(room)) return;
     evaluate(room);
     const idx = Math.max(0, room.players.findIndex(x => x.id === room.turn));
-    beginTurn(room, correct ? idx : idx);
+    beginTurn(room, idx);
   }, correct ? RESOLVE_PAUSE_OK : RESOLVE_PAUSE_NG);
 }
 
@@ -430,6 +574,7 @@ function handle(ws, msg) {
   switch (msg.t) {
     case 'create': {
       const r = createRoom();
+      if (['basic', 'extreme'].includes(msg.mode)) r.cfg.mode = msg.mode;
       const p = addPlayer(r, { name: clean(msg.name, 12) || '플레이어 1' });
       attach(r, p, ws);
       return;
@@ -501,6 +646,7 @@ function handle(ws, msg) {
       if (!isHost) return;
       if (['easy', 'normal', 'hard'].includes(msg.botDiff)) room.cfg.botDiff = msg.botDiff;
       if ([0, 4000, 6000, 9000].includes(msg.turnLimit)) room.cfg.turnLimit = msg.turnLimit;
+      if (['basic', 'extreme'].includes(msg.mode) && room.phase === 'lobby') room.cfg.mode = msg.mode;
       pushState(room);
       break;
     }
@@ -521,7 +667,7 @@ function handle(ws, msg) {
       break;
 
     case 'call':
-      doCall(room, me.id, msg.fruit);
+      doCall(room, me.id, msg.word);
       break;
 
     case 'again':

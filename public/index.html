@@ -19,6 +19,11 @@
       <input id="inName" maxlength="12" placeholder="이름을 입력하세요" autocomplete="nickname">
     </label>
 
+    <div class="modepick" id="modePick">
+      <button class="mp on" data-mode="basic"><b>기본</b><small>과일 4종</small></button>
+      <button class="mp" data-mode="extreme"><b>익스트림</b><small>동물 카드 + 같은 배치</small></button>
+    </div>
+
     <button class="btn primary big" id="btnCreate">방 만들기</button>
 
     <div class="or"><span>또는</span></div>
@@ -50,6 +55,13 @@
 
     <div class="hostonly" id="hostBox">
       <div class="opts">
+        <label class="opt">
+          <span>모드</span>
+          <select id="optMode">
+            <option value="basic">기본</option>
+            <option value="extreme">익스트림</option>
+          </select>
+        </label>
         <label class="opt">
           <span>봇 실력</span>
           <select id="optDiff">
@@ -98,6 +110,7 @@
         <span class="lbl">크게보기</span>
       </label>
       <span class="spacer"></span>
+      <div class="spchip" id="spChip" hidden></div>
       <div class="turnnow" id="turnNow"><span class="tdot"></span><span class="ttext">—</span></div>
     </div>
 
