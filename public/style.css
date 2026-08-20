@@ -25,7 +25,7 @@ b{font-weight:800}
 
 /* ── 공통 ── */
 .screen{min-height:100%;display:flex;align-items:center;justify-content:center;padding:22px 16px}
-.screen.game{align-items:flex-start}
+.screen.game{align-items:flex-start;height:100%;min-height:0}
 .panel{
   width:100%;max-width:430px;background:var(--panelbg);
   border:1px solid var(--line);border-radius:20px;padding:26px 24px;
@@ -107,8 +107,9 @@ select{cursor:pointer}
 .hostonly[hidden]{display:none}
 
 /* ── 게임 ── */
-.game{flex-direction:column;padding:12px 14px 20px;position:relative}
-.bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:100%;max-width:1040px;margin:0 auto 12px}
+.game{flex-direction:column;padding:10px 14px 14px;position:relative}
+.game > .table{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+.bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:100%;max-width:1040px;margin:0 auto 8px}
 .brand{font-weight:800;font-size:15px;letter-spacing:-.02em;white-space:nowrap}
 .spacer{flex:1}
 .pill{
@@ -125,16 +126,41 @@ select{cursor:pointer}
   box-shadow:inset 0 1px 0 color-mix(in srgb,var(--text) 7%,transparent),0 26px 64px -34px rgba(0,0,0,.55);
 }
 
+/* ── 보드 위 툴바 ── */
+.boardbar{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  margin:0 2px 8px;min-height:32px;
+}
+.boardbar .spacer{flex:1}
+.boardbar .waitmsg{font-size:12.5px;color:var(--muted);font-weight:600}
+.boardbar .btn.primary{padding:7px 16px;font-size:13.5px}
+.boardbar .btn.primary[hidden]{display:none !important}
+
+.switch{display:inline-flex;align-items:center;gap:8px;cursor:pointer;user-select:none}
+.switch input{position:absolute;opacity:0;width:0;height:0}
+.switch .track{
+  width:38px;height:22px;border-radius:99px;flex:none;position:relative;
+  background:var(--sink);border:1px solid var(--line2);
+  transition:background .18s,border-color .18s;
+}
+.switch .knob{
+  position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;
+  background:var(--muted);transition:transform .18s ease,background .18s;
+}
+.switch input:checked + .track{background:color-mix(in srgb,var(--gold) 30%,transparent);border-color:var(--gold)}
+.switch input:checked + .track .knob{transform:translateX(16px);background:var(--gold)}
+.switch input:focus-visible + .track{box-shadow:0 0 0 4px color-mix(in srgb,var(--gold) 20%,transparent)}
+.switch .lbl{font-size:12.5px;font-weight:700;color:var(--muted)}
+.switch input:checked ~ .lbl{color:var(--text)}
+
 /* ── 보드 ──
    가운데 종을 두고, 펼친 카드가 종을 둘러싼다.
    각자의 손패 뭉치는 자기 쪽 화면 끝에 놓인다. */
 .board{
   position:relative;width:100%;max-width:920px;margin:0 auto;
-  --bh:clamp(300px,58vh,560px);
-  height:var(--bh);
-  /* 종 → 펼친 카드 → 손패 뭉치 → 이름표가 세로로 겹치지 않도록 역산한 크기 */
-  --ch:clamp(48px,calc((var(--bh) - 152px) / 4),108px);
-  --cw:calc(var(--ch) / 1.4);
+  flex:1 1 auto;min-height:260px;
+  /* 실제 값은 layoutBoard()가 실측해서 덮어쓴다 */
+  --ch:96px; --cw:calc(var(--ch) / 1.4); --deckScale:.55;
   --rx:41%;                             /* 손패 뭉치 — 좌우는 화면 끝까지 */
   --ry:calc(52px + var(--ch) * 1.5);
   --px:21%;                             /* 펼친 카드 — 종을 둘러싼다 */
@@ -142,7 +168,7 @@ select{cursor:pointer}
 }
 .bell{
   position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
-  font-size:calc(var(--ch) * .42);z-index:0;opacity:.55;
+  font-size:clamp(30px,4.4vh,46px);z-index:0;opacity:.5;
   filter:grayscale(.25);user-select:none;pointer-events:none;
 }
 .bell.ring{animation:bellring .55s ease-out;opacity:1}
@@ -154,6 +180,21 @@ select{cursor:pointer}
 }
 
 .slots{position:absolute;inset:0;z-index:1}
+
+/* 크게보기 — 펼친 카드 한 줄, 그 아래 각자의 손패 */
+.board.rows{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}
+.board.rows .bell{position:static;transform:none;order:-1;line-height:1}
+.board.rows .slots{position:static;display:flex;flex-direction:column;gap:10px;align-items:center;width:100%}
+.board.rows .rowline{display:flex;justify-content:center;align-items:flex-start;gap:14px}
+.board.rows .col{display:flex;flex-direction:column;align-items:center;gap:10px}
+.board.rows .slot{position:relative;left:auto;top:auto;transform:none}
+.board.rows .bell.ring{animation:bellring2 .55s ease-out}
+@keyframes bellring2{
+  0%{transform:scale(1) rotate(0)}
+  25%{transform:scale(1.22) rotate(-16deg)}
+  55%{transform:scale(1.18) rotate(14deg)}
+  100%{transform:scale(1) rotate(0)}
+}
 .slot{
   position:absolute;transform:translate(-50%,-50%);z-index:1;
   display:flex;flex-direction:column;align-items:center;gap:7px;
@@ -166,29 +207,38 @@ select{cursor:pointer}
 .slot.mine .nm{color:var(--hit)}
 .slot.canflip{cursor:pointer}
 .slot.canflip .stack.deck{animation:nudge 1.5s ease-in-out infinite}
+.slot.canflip .tagline{animation:nudgeTag 1.5s ease-in-out infinite}
 @keyframes nudge{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes nudgeTag{
+  0%,100%{transform:translateX(-50%) translateY(0)}
+  50%{transform:translateX(-50%) translateY(-5px)}
+}
 
 .tagline{
-  display:flex;flex-direction:column;align-items:center;gap:2px;
-  padding:5px 10px;border-radius:11px;border:1px solid transparent;
-  transition:background .2s,border-color .2s;max-width:150px;
+  position:absolute;left:50%;bottom:11px;transform:translateX(-50%);z-index:4;
+  display:flex;flex-direction:column;align-items:center;gap:0;
+  padding:3px 9px;border-radius:9px;white-space:nowrap;
+  background:var(--surface);
+  border:1px solid var(--line2);
+  transition:background .2s,border-color .2s;
 }
-.slot.turn .tagline{border-color:color-mix(in srgb,var(--gold) 60%,transparent);background:color-mix(in srgb,var(--gold) 12%,transparent)}
-.slot.hit .tagline{border-color:var(--hit);background:color-mix(in srgb,var(--hit) 18%,transparent)}
-.slot.miss .tagline{border-color:var(--miss);background:color-mix(in srgb,var(--miss) 18%,transparent)}
+.slot.turn .tagline{border-color:var(--gold);background:color-mix(in srgb,var(--gold) 20%,var(--surface))}
+.slot.hit .tagline{border-color:var(--hit);background:color-mix(in srgb,var(--hit) 34%,var(--surface))}
+.slot.miss .tagline{border-color:var(--miss);background:color-mix(in srgb,var(--miss) 34%,var(--surface))}
 .who{font-size:12.5px;font-weight:800;display:flex;align-items:center;gap:5px;max-width:100%}
 .who .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .who .dot{width:6px;height:6px;border-radius:50%;background:var(--dot);flex:none}
 .slot.turn .who .dot{background:var(--gold);box-shadow:0 0 0 4px color-mix(in srgb,var(--gold) 22%,transparent)}
-.counts{font-size:10.5px;color:var(--muted);display:flex;gap:8px}
+.counts{font-size:9.5px;color:var(--muted);display:flex;gap:6px;line-height:1.5}
 .counts b{color:var(--text);font-variant-numeric:tabular-nums}
-.badge{font-size:10px;font-weight:800;color:var(--miss)}
+.badge{font-size:9.5px;font-weight:800;color:var(--miss)}
 
 /* ── 카드 ──
    손패(뒷면 덱)와 앞면 더미를 나란히 둔다. 장수가 많을수록 층이 쌓여 두꺼워진다. */
 /* 더미 두께가 아래·오른쪽으로 삐져나오므로 그만큼 자리를 비워둔다 */
-.stacks{display:block;padding:0 calc(var(--cw) * .16) calc(var(--cw) * .26) 0}
+.stacks{display:block;padding:0 9px 16px 0}
 .stack{position:relative;width:var(--cw);height:var(--ch);flex:none}
+.stack.deck{width:calc(var(--cw) * var(--deckScale));height:calc(var(--ch) * var(--deckScale))}
 .lay{
   position:absolute;inset:0;border-radius:11px;z-index:0;
   background:var(--pileedge);border:1px solid rgba(0,0,0,.24);
@@ -215,7 +265,7 @@ select{cursor:pointer}
   box-shadow:0 9px 22px -12px rgba(0,0,0,.9), inset 0 0 0 4px var(--backline), inset 0 0 0 5px rgba(0,0,0,.2);
   display:grid;place-items:center;
 }
-.top.back::after{content:"🔔";font-size:calc(var(--cw) * .28);opacity:.85;filter:grayscale(.2)}
+.top.back::after{content:"🔔";font-size:calc(var(--cw) * var(--deckScale) * .34);opacity:.85;filter:grayscale(.2)}
 
 /* 판을 쓸어 담은 사람의 덱이 순간 두꺼워지는 느낌 */
 .slot.win .stack.deck{animation:thicken .6s ease-out}
@@ -247,11 +297,11 @@ select{cursor:pointer}
 }
 
 /* 과일 이름 안내 (클릭 불가 — 타자로만 친다) */
-.tally{display:flex;gap:7px;justify-content:center;flex-wrap:wrap;margin:10px 0 2px}
+.tally{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin:8px 0 0}
 .chip{
   display:flex;align-items:center;gap:7px;user-select:none;pointer-events:none;
   background:var(--raise);border:1px solid var(--line);
-  border-radius:99px;padding:6px 14px 6px 11px;font-size:13px;font-weight:600;
+  border-radius:99px;padding:4px 12px 4px 10px;font-size:12.5px;font-weight:600;
   transition:background .15s,border-color .15s;
 }
 .chip .em{font-size:16px}
@@ -259,7 +309,7 @@ select{cursor:pointer}
 .chip.five{background:color-mix(in srgb,var(--hit) 18%,transparent);border-color:var(--hit)}
 
 /* 입력 + 뒤집기 */
-.actionrow{display:flex;gap:10px;margin-top:12px;align-items:stretch}
+.actionrow{display:flex;gap:10px;margin-top:10px;align-items:stretch}
 #entry{
   flex:1;font-size:20px;font-weight:800;letter-spacing:.02em;text-align:center;
   border-width:2px;border-radius:13px;padding:14px 16px;
@@ -289,7 +339,7 @@ select{cursor:pointer}
 .status b{color:var(--text)}
 
 .log{
-  margin-top:10px;height:74px;overflow-y:auto;font-size:12.5px;line-height:1.75;
+  margin-top:9px;height:46px;overflow-y:auto;font-size:12.5px;line-height:1.75;
   color:var(--muted);background:var(--sink);border:1px solid var(--line);
   border-radius:12px;padding:9px 13px;
 }
@@ -433,7 +483,7 @@ html[data-theme="candy"]{
   .card .pip{font-size:21px}
   .top.back::after{font-size:17px}
   .stacks{padding:0 9px 16px 0}
-  .board{--bh:clamp(320px,62vh,470px);--rx:37%;--px:20%}
+  .board{min-height:300px;--rx:37%;--px:20%}
   .tagline{padding:3px 7px}
   .who{font-size:11px}
   .actionrow{flex-direction:column}

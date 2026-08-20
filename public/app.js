@@ -34,7 +34,7 @@ const el = {};
  'roomCode','btnCopy','lobbyPlayers','hostBox','optDiff','optLimit',
  'btnAddBot','btnStart','lobbyHint','barCode','barTurn','btnLeave','tally',
  'entry','btnFlip','flipTimer','status','log','overlay','ovTitle','ovSub','btnAgain',
- 'btnToLobby','toast','verdict','ovRank','theme','themeGame','board','slots','bell','btnSound'].forEach(k => el[k] = $(k));
+ 'btnToLobby','toast','verdict','ovRank','theme','themeGame','board','slots','bell','btnSound','bigToggle','btnGo','waitMsg'].forEach(k => el[k] = $(k));
 
 let ws = null, me = null, S = null, clockOffset = 0;
 let flashInfo = null, flashUntil = 0, verdictTimer = null;
@@ -132,7 +132,7 @@ function onState(s) {
   el.barCode.textContent = s.code;
 
   if (s.phase === 'lobby') { renderLobby(); show('lobby'); el.overlay.hidden = true; }
-  else { renderGame(prev); show('game'); }
+  else { renderGame(); show('game'); }
 
   if (s.phase === 'over') showResult();
   else el.overlay.hidden = true;
@@ -198,27 +198,36 @@ function stackHTML(kind, n, inner) {
 /* ── 게임 ──
    나를 아래쪽에 두고 시계 방향으로 자리를 잡는다.
    손패 뭉치는 자기 쪽 바깥, 펼친 카드는 가운데 종 주변. */
-/** 종 → 펼친 카드 → 손패 뭉치 → 이름표가 세로로 겹치지 않게 실측으로 잡는다 */
+/* 배치 모드 — C: 종을 둘러싼 원형 / D: 가로 두 줄(크게보기) */
+let layoutMode = localStorage.getItem('hgLayout') === 'D' ? 'D' : 'C';
+const DECK_SCALE = 0.55;               // 손패 뭉치는 펼친 카드보다 작게
+const MAX_CH = 190;
+
+/** 실제 크기를 재서 카드가 최대한 커지도록 반경과 카드 높이를 잡는다 */
 function layoutBoard() {
-  const decks = [...el.slots.querySelectorAll('.slot[data-role="deck"]')];
-  if (!decks.length) return;
-  const T = Math.max(...decks.map(d => {
-    const t = d.querySelector('.tagline');
-    return t ? t.offsetHeight : 40;
-  }));
-  const bellHalf = (el.bell.offsetHeight || 24) / 2;
-  const H = el.board.clientHeight;
-  const GAP = 7;
+  if (!el.slots.children.length) return;
+  const bellHalf = (el.bell.offsetHeight || 40) / 2;
+  const H = el.board.clientHeight, W = el.board.clientWidth;
+  const G = 8, PAD = 16;               // PAD = 더미 두께가 아래로 삐져나오는 몫
+  const n = S.players.length;
+  let ch;
 
-  const maxCh = (H / 2 - bellHalf - GAP * 2 - 5 - T) / 2;
-  const ch = Math.max(44, Math.min(112, maxCh));
-  const slotH = ch + GAP + T;
-  const py = bellHalf + GAP - 1 + ch / 2;
-  const ry = py + ch / 2 + GAP - 1 + slotH / 2;
+  if (layoutMode === 'D') {
+    const byHeight = (H - bellHalf * 2 - G * 3 - PAD) / (1 + DECK_SCALE);
+    const byWidth  = 1.4 * (W - 20 - 14 * (n - 1)) / n;
+    ch = Math.min(MAX_CH, byHeight, byWidth);
+  } else {
+    ch = (H / 2 - bellHalf - G * 2 - PAD) / (1 + DECK_SCALE);
+    const py = bellHalf + G + ch / 2;
+    const ry = py + ch / 2 + G + (ch * DECK_SCALE + PAD) / 2;
+    el.board.style.setProperty('--py', py + 'px');
+    el.board.style.setProperty('--ry', ry + 'px');
+  }
 
+  ch = Math.max(52, Math.min(MAX_CH, ch));
   el.board.style.setProperty('--ch', ch + 'px');
-  el.board.style.setProperty('--py', py + 'px');
-  el.board.style.setProperty('--ry', ry + 'px');
+  el.board.style.setProperty('--cw', (ch / 1.4) + 'px');
+  el.board.style.setProperty('--deckScale', DECK_SCALE);
 }
 window.addEventListener('resize', () => { if (S && S.phase !== 'lobby') layoutBoard(); });
 
@@ -235,38 +244,58 @@ function seatAngles(n, myIdx) {
 function renderGame() {
   const n = S.players.length;
   const myIdx = Math.max(0, S.players.findIndex(p => p.id === me));
-  const ang = seatAngles(n, myIdx);
+  const big = layoutMode === 'D';
+  el.board.classList.toggle('rows', big);
 
-  el.slots.innerHTML = S.players.map((p, i) => {
+  const state = p => {
     const fl = flashInfo && flashInfo.id === p.id && Date.now() < flashUntil ? flashInfo : null;
-    const cls = [
-      p.id === me ? 'mine' : '', S.turn === p.id ? 'turn' : '', p.out ? 'out' : '',
-      (!p.connected && !p.bot) ? 'dc' : '', fl ? fl.kind : ''
-    ].filter(Boolean).join(' ');
-    const canFlip = p.id === me && S.turn === me && !S.resolving && !S.frozen && S.phase === 'playing';
-    const style = `--c:${ang[i].c};--s:${ang[i].s}`;
+    return {
+      fl,
+      cls: [
+        p.id === me ? 'mine' : '', S.turn === p.id ? 'turn' : '', p.out ? 'out' : '',
+        (!p.connected && !p.bot) ? 'dc' : '', fl ? fl.kind : ''
+      ].filter(Boolean).join(' '),
+      canFlip: p.id === me && S.turn === me && !S.resolving && !S.frozen && S.phase === 'playing',
+    };
+  };
 
-    const deck = `
+  const deckHTML = (p, style) => {
+    const { fl, cls, canFlip } = state(p);
+    return `
       <div class="slot deck-slot ${cls}${canFlip ? ' canflip' : ''}" data-id="${p.id}" data-role="deck" style="${style}">
         <div class="stacks">${stackHTML('deck', p.hand, p.hand > 0
           ? '<div class="top back"></div>'
           : '<div class="top card empty">빈 덱</div>')}</div>
         <div class="tagline">
           <div class="who"><span class="dot"></span><span class="nm">${esc(p.name)}</span>${p.bot ? '🤖' : ''}${!p.connected && !p.bot ? '📴' : ''}</div>
-          <div class="counts"><span>손패 <b>${p.hand}</b></span><span>앞면 <b>${p.pile}</b></span></div>
-          <div class="score"><span class="h">종 ${p.hits}</span> · <span class="m">오답 ${p.misses}</span></div>
-          ${p.out ? '<div class="badge">탈락</div>' : ''}
+          <div class="counts">
+            <span><b>${p.hand}</b>장</span>
+            <span class="h">종 ${p.hits}</span><span class="m">오답 ${p.misses}</span>
+            ${p.out ? '<span class="badge">탈락</span>' : ''}
+          </div>
         </div>
         ${fl ? `<span class="delta ${fl.kind}">${fl.delta}</span>` : ''}
       </div>`;
+  };
 
-    const pile = `
-      <div class="slot pile-slot ${cls}" data-id="${p.id}" data-role="pile" style="${style}">
+  const pileHTML = (p, style) => `
+      <div class="slot pile-slot ${state(p).cls}" data-id="${p.id}" data-role="pile" style="${style}">
         <div class="stacks">${stackHTML('pile', p.pile, p.top ? cardFace(p.top) : '')}</div>
       </div>`;
 
-    return deck + pile;
-  }).join('');
+  if (big) {
+    // 펼친 카드가 한 줄, 각자의 손패는 자기 카드 바로 아래에 열로 묶인다
+    const order = [...S.players.slice(myIdx), ...S.players.slice(0, myIdx)];
+    el.slots.innerHTML =
+      `<div class="rowline">${order.map(p =>
+        `<div class="col">${pileHTML(p, '')}${deckHTML(p, '')}</div>`).join('')}</div>`;
+  } else {
+    const ang = seatAngles(n, myIdx);
+    el.slots.innerHTML = S.players.map((p, i) => {
+      const style = `--c:${ang[i].c};--s:${ang[i].s}`;
+      return deckHTML(p, style) + pileHTML(p, style);
+    }).join('');
+  }
 
   layoutBoard();
 
@@ -274,7 +303,6 @@ function renderGame() {
   el.tally.innerHTML = FRUITS.map(f => `
     <div class="chip">
       <span class="em">${f.emoji}</span><span>${f.ko}</span>
-      <span class="alt">${f.names[1]}</span>
     </div>`).join('');
 
   const mine = myP();
@@ -282,8 +310,14 @@ function renderGame() {
   el.btnFlip.classList.toggle('on', myTurn && !S.frozen);
   el.btnFlip.disabled = S.turn !== me || S.phase !== 'playing';
 
+  const ready = S.phase === 'ready';
+  el.btnGo.hidden = !(ready && isHost());
+  el.waitMsg.textContent = ready
+    ? (isHost() ? '준비되면 시작하세요' : '방장이 시작하기를 기다리는 중…')
+    : '';
+
   const turnP = S.players.find(p => p.id === S.turn);
-  el.barTurn.textContent = S.phase !== 'playing' ? '—'
+  el.barTurn.textContent = S.phase !== 'playing' ? (ready ? '대기 중' : '—')
     : (S.turn === me ? '내 차례' : `${turnP ? turnP.name : '?'} 차례`);
   el.barTurn.style.color = S.turn === me ? 'var(--gold)' : '';
 
@@ -363,8 +397,13 @@ function onEvent(m) {
     return p ? esc(p.name) : '?';
   };
 
-  if (m.kind === 'start') {
+  if (m.kind === 'dealt') {
     el.log.innerHTML = ''; el.status.innerHTML = '';
+    log('카드를 나눴습니다. 방장이 시작을 누르면 첫 차례가 열립니다.');
+  }
+
+  if (m.kind === 'start') {
+    el.status.innerHTML = '';
     log('게임 시작! 같은 과일이 <b>정확히 5개</b>가 되는 순간을 노리세요.');
   }
 
@@ -550,7 +589,17 @@ el.theme.addEventListener('change', () => applyTheme(el.theme.value));
 el.themeGame.addEventListener('change', () => applyTheme(el.themeGame.value));
 
 /* ───────────── 시작 ───────────── */
-applyTheme(localStorage.getItem('hgTheme') || 'felt');
+applyTheme(localStorage.getItem('hgTheme') || 'paper');
+
+function setLayout(mode) {
+  layoutMode = mode;
+  localStorage.setItem('hgLayout', mode);
+  el.bigToggle.checked = mode === 'D';
+  if (S && S.phase !== 'lobby') renderGame();
+}
+el.bigToggle.addEventListener('change', () => setLayout(el.bigToggle.checked ? 'D' : 'C'));
+setLayout(layoutMode);
+el.btnGo.addEventListener('click', () => send({ t: 'go' }));
 el.btnSound.addEventListener('click', () => setMuted(!muted));
 setMuted(muted);
 el.inName.value = localStorage.getItem('hgName') || '';

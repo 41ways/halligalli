@@ -70,7 +70,7 @@ const clean = (s, max) => String(s == null ? '' : s).replace(/\s+/g, ' ').trim()
 function createRoom() {
   const room = {
     code: makeCode(),
-    phase: 'lobby',              // lobby | playing | over
+    phase: 'lobby',              // lobby | ready | playing | over
     hostId: null,
     players: [],
     nextId: 1,
@@ -200,16 +200,26 @@ function startGame(room) {
   });
   deck.forEach((c, i) => players[i % players.length].hand.push(c));
 
-  room.phase = 'playing';
+  room.phase = 'ready';           // 카드는 깔렸지만 아직 아무도 못 뒤집는다
   room.resolving = false;
   room.frozen = false;
   room.winner = null;
   room.fiveSince = 0;
   room.lock = {};
   room.turn = players[0].id;
+  room.turnEndsAt = 0;
 
+  ev(room, { kind: 'dealt' });
+  pushState(room);
+}
+
+/** 방장이 테이블에서 시작을 누르면 그때 첫 차례가 열린다 */
+function beginGame(room) {
+  if (room.phase !== 'ready') return;
+  room.phase = 'playing';
+  const idx = Math.max(0, room.players.findIndex(p => p.id === room.turn));
   ev(room, { kind: 'start' });
-  beginTurn(room, 0);
+  beginTurn(room, idx);
 }
 
 /** fromIdx 부터 시작해 카드를 뒤집을 수 있는 다음 사람을 찾아 차례를 넘긴다 */
@@ -461,7 +471,7 @@ function handle(ws, msg) {
       break;
 
     case 'addBot': {
-      if (!isHost || room.phase === 'playing') return;
+      if (!isHost || room.phase === 'playing' || room.phase === 'ready') return;
       if (room.players.length >= MAX_PLAYERS) return send(ws, { t: 'err', msg: '자리가 없어요.' });
       const used = new Set(room.players.map(p => p.name));
       const name = BOT_NAMES.find(n => !used.has(n)) || `봇 ${room.players.length + 1}`;
@@ -496,9 +506,14 @@ function handle(ws, msg) {
     }
 
     case 'start':
-      if (!isHost || room.phase === 'playing') return;
+      if (!isHost || room.phase === 'playing' || room.phase === 'ready') return;
       if (room.players.length < 2) return send(ws, { t: 'err', msg: '2명 이상이어야 시작할 수 있어요.' });
       startGame(room);
+      break;
+
+    case 'go':
+      if (!isHost) return;
+      beginGame(room);
       break;
 
     case 'flip':
