@@ -51,6 +51,8 @@ const el = {};
 
 let ws = null, me = null, S = null, clockOffset = 0;
 let flashInfo = null, flashUntil = 0, verdictTimer = null;
+let dealing = {};        // 뒤집는 중인 자리 — 연출이 끝날 때까지 앞면을 감춘다
+const DEAL_MS = 460;
 
 /* ───────────── 소리 ───────────── */
 let actx = null;
@@ -301,7 +303,7 @@ function renderGame() {
   };
 
   const pileHTML = (p, style) => `
-      <div class="slot pile-slot ${state(p).cls}" data-id="${p.id}" data-role="pile" style="${style}">
+      <div class="slot pile-slot ${state(p).cls}${dealing[p.id] ? ' dealing' : ''}" data-id="${p.id}" data-role="pile" style="${style}">
         <div class="stacks">${stackHTML('pile', p.pile, p.top ? cardFace(p.top) : '')}</div>
       </div>`;
 
@@ -392,14 +394,14 @@ function flyer(fromEl, toEl, innerFront, spin, ms) {
   setTimeout(() => f.remove(), ms + 90);
 }
 
-/** 손패에서 한 장을 뽑아 → 공중에서 뒤집으며 → 종 옆에 내려놓는다 */
+/** 손패에서 한 장을 뽑아 → 공중에서 뒤집으며 → 종 옆에 내려놓는다.
+    날아가는 동안에는 그 자리의 앞면을 감춰서, 다 뒤집히기 전에 미리 보이지 않게 한다. */
 function animFlip(playerId, card) {
   const deck = slotEl(playerId, 'deck'), pile = slotEl(playerId, 'pile');
   if (!deck || !pile) return;
-  const from = deck.querySelector('.stack'), to = pile.querySelector('.stack');
-  const top = to && to.querySelector('.top');
-  if (top) { top.style.visibility = 'hidden'; setTimeout(() => { top.style.visibility = ''; }, 430); }
-  flyer(from, to, cardFace(card), true, 460);
+  pile.classList.add('dealing');
+  flyer(deck.querySelector('.stack'), pile.querySelector('.stack'),
+        cardFace(card), true, DEAL_MS);
 }
 
 /** 성공한 사람이 판에 깔린 카드를 전부 쓸어 담는 연출 */
@@ -427,6 +429,7 @@ function onEvent(m) {
   };
 
   if (m.kind === 'dealt') {
+    dealing = {};
     el.log.innerHTML = ''; el.status.innerHTML = '';
     log('카드를 나눴습니다. 방장이 시작을 누르면 첫 차례가 열립니다.');
   }
@@ -440,8 +443,13 @@ function onEvent(m) {
 
   if (m.kind === 'flip') {
     sfxFlip();
-    // state 메시지가 뒤따라오므로 렌더가 끝난 뒤에 연출을 얹는다
+    // 상태 갱신이 먼저 그려져도 앞면이 새어 나오지 않게, 이 시점에 바로 잠근다
+    dealing[m.by] = true;
     setTimeout(() => animFlip(m.by, m.card), 0);
+    setTimeout(() => {                      // 연출이 끝나면 풀고 다시 그린다
+      delete dealing[m.by];
+      if (S && S.phase !== 'lobby') renderGame();
+    }, DEAL_MS + 60);
   }
 
   if (m.kind === 'call') {
@@ -451,6 +459,7 @@ function onEvent(m) {
     const mine = m.by === me;
 
     if (m.ok) {
+      dealing = {};
       setTimeout(() => animCollect(m.by), 0);
       markSeat(m.by, 'hit', `+${m.gained}`, 1900);
       showVerdict(
@@ -708,8 +717,10 @@ function applyTheme(v) {
 el.theme.addEventListener('change', () => applyTheme(el.theme.value));
 el.themeGame.addEventListener('change', () => applyTheme(el.themeGame.value));
 
+
 /* ───────────── 시작 ───────────── */
 applyTheme(localStorage.getItem('hgTheme') || 'paper');
+document.documentElement.dataset.shape = 'round';   // 시안이 정해지면 여기만 바꾼다
 
 function setLayout(mode) {
   layoutMode = mode;

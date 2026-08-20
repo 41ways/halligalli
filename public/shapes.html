@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="ko" data-shape="round">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>모양 시안 — 할리갈리</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  body{display:block;padding:0}
+  .page{max-width:1180px;margin:0 auto;padding:22px 18px 60px}
+  .head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+  .head h1{font-size:19px;margin:0;font-weight:800;letter-spacing:-.02em}
+  .head p{margin:0;font-size:13px;color:var(--muted)}
+  .head .sp{flex:1}
+  .head select{padding:6px 11px;font-size:12px}
+
+  .grid{display:grid;gap:26px;grid-template-columns:repeat(auto-fit,minmax(430px,1fr));margin-top:20px}
+  .item{display:flex;flex-direction:column;gap:9px}
+  .cap{display:flex;align-items:baseline;gap:9px}
+  .cap b{font-size:15px;font-weight:800;letter-spacing:-.02em}
+  .cap .no{
+    font-size:11px;font-weight:800;color:var(--onaccent);background:var(--gold);
+    border-radius:99px;padding:2px 9px;
+  }
+  .cap span{font-size:12.5px;color:var(--muted)}
+
+  /* 실제 화면을 축소해서 보여준다 */
+  .frame{
+    width:100%;aspect-ratio:900/620;overflow:hidden;position:relative;
+    background:var(--bg);border:1px solid var(--line);border-radius:14px;
+  }
+  .scaler{
+    position:absolute;top:0;left:0;width:900px;height:620px;
+    transform-origin:top left;
+  }
+  .demo{padding:14px}
+  .demo .board{
+    min-height:0;height:360px;flex:none;
+    --ch:80px;--cw:57px;--deckScale:.55;--py:68px;--ry:146px;
+  }
+  .demo .screen.game{height:auto;min-height:0}
+  .demo .game > .table{flex:none}
+  .demo .log{height:34px}
+  .demo .status{min-height:16px}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="head">
+    <h1>🔔 모양 시안</h1>
+    <p>모서리·테두리·그림자만 다릅니다. 색은 전부 같습니다.</p>
+    <span class="sp"></span>
+    <select id="theme">
+      <option value="paper">크래프트 페이퍼</option>
+      <option value="felt">딥 그린 펠트</option>
+      <option value="neon">네온 아케이드</option>
+      <option value="midnight">미드나잇 미니멀</option>
+      <option value="candy">캔디 팝</option>
+    </select>
+  </div>
+
+  <div class="grid" id="grid"></div>
+</div>
+
+<script>
+const SHAPES = [
+  { k:'round', n:'둥글게',       d:'지금 쓰고 있는 모양. 모서리 20px, 알약 버튼' },
+  { k:'soft',  n:'살짝',         d:'둥글기를 절반으로. 알약을 없애 덜 물렁하게' },
+  { k:'sharp', n:'각지게',       d:'모서리 4px. 카드다운 반듯함이 살아난다' },
+  { k:'zero',  n:'딱 떨어지게',   d:'직각 + 두꺼운 테두리 + 하드 섀도우' },
+  { k:'cut',   n:'모서리 깎기',   d:'직각인데 모서리만 잘라낸 팔각. 기계적인 인상' },
+  { k:'line',  n:'선만',         d:'그림자 없이 또렷한 선으로만 구분. 가장 담백' },
+  { k:'thick', n:'두꺼운 테두리', d:'살짝 둥글되 선이 굵다. 보드게임 스티커 느낌' },
+];
+
+const FRUIT = ['🍌','🍋','🍓','🍇'];
+const PIPS = {
+  1:[[50,50,-4]], 2:[[33,30,-13],[67,70,11]], 3:[[32,26,-15],[50,50,5],[68,74,13]],
+  4:[[31,29,-11],[69,29,9],[31,71,8],[69,71,-9]],
+  5:[[30,26,-13],[70,26,10],[50,50,-3],[30,74,9],[70,74,-10]],
+};
+const card = (em,n) => `<div class="top card">` +
+  PIPS[n].map(([x,y,r])=>`<span class="pip" style="left:${x}%;top:${y}%;transform:rotate(${r}deg)">${em}</span>`).join('') +
+  `</div>`;
+const layers = n => { let o=''; const L=Math.min(10,n), t=Math.min(14,n*0.3);
+  for(let i=L;i>=1;i--){const d=t*(i/L);o+=`<i class="lay" style="transform:translate(${(d*.55).toFixed(2)}px,${d.toFixed(2)}px)"></i>`;}
+  return o; };
+
+const SEATS = [
+  { c:0,  s:1,  nm:'나',    hand:14, turn:true,  fruit:'🍓', n:3 },
+  { c:-1, s:0,  nm:'깐돌이', hand:18, turn:false, fruit:'🍌', n:2 },
+  { c:0,  s:-1, nm:'알밤이', hand:11, turn:false, fruit:'🍇', n:5 },
+  { c:1,  s:0,  nm:'토실이', hand:13, turn:false, fruit:'🍋', n:1 },
+];
+
+function board() {
+  const slots = SEATS.map(p => `
+    <div class="slot deck-slot ${p.turn?'mine turn':''}" style="--c:${p.c};--s:${p.s}">
+      <div class="stacks"><div class="stack deck">${layers(p.hand)}<div class="top back"></div></div></div>
+      <div class="tagline">
+        <div class="who"><span class="dot"></span><span class="nm">${p.nm}</span>${p.turn?'<span class="turnbadge">차례</span>':''}</div>
+        <div class="counts"><span class="hand"><b class="cnt">${p.hand}</b><i class="unit">장</i></span>
+          <span class="h">종 0</span><span class="m">오답 0</span></div>
+      </div>
+    </div>
+    <div class="slot pile-slot" style="--c:${p.c};--s:${p.s}">
+      <div class="stacks"><div class="stack pile">${layers(2)}${card(p.fruit,p.n)}</div></div>
+    </div>`).join('');
+
+  return `
+  <div class="screen game demo">
+    <div class="bar">
+      <span class="brand">🔔 할리갈리</span>
+      <span class="pill" id="c">QHSL</span>
+      <span class="spacer"></span>
+      <button class="btn tiny">?</button>
+      <button class="btn tiny">🔇</button>
+      <button class="btn tiny">나가기</button>
+    </div>
+    <div class="table myturn">
+      <div class="boardbar">
+        <label class="switch"><input type="checkbox"><span class="track"><span class="knob"></span></span><span class="lbl">크게보기</span></label>
+        <span class="spacer"></span>
+        <div class="turnnow me"><span class="tdot"></span><span class="ttext">내 차례 — 카드를 뒤집으세요</span></div>
+      </div>
+      <div class="board">
+        <div class="bell">🔔</div>
+        <div class="slots">${slots}</div>
+      </div>
+      <div class="actionrow">
+        <input value="딸기" readonly>
+        <button class="btn flip on"><b>카드 뒤집기</b><small>마우스로 클릭</small></button>
+      </div>
+      <div class="status"><span class="ok">성공!</span> 🍓 딸기 5개 — <b>13장</b> 획득 · 221ms</div>
+      <div class="log"><div class="win">🍓 <b>나</b> 성공 → +13장</div></div>
+    </div>
+    <div class="credit">정한결</div>
+  </div>`;
+}
+
+document.getElementById('grid').innerHTML = SHAPES.map((sh,i) => `
+  <div class="item">
+    <div class="cap"><span class="no">${i+1}</span><b>${sh.n}</b><span>${sh.d}</span></div>
+    <div class="frame"><div class="scaler sh-${sh.k}" data-shape="${sh.k}">${board()}</div></div>
+  </div>`).join('');
+
+function fit(){
+  document.querySelectorAll('.frame').forEach(f=>{
+    const s = f.querySelector('.scaler');
+    s.style.transform = 'scale(' + (f.clientWidth/900) + ')';
+  });
+}
+window.addEventListener('resize', fit); fit();
+
+const th = document.getElementById('theme');
+th.value = localStorage.getItem('hgTheme') || 'paper';
+document.documentElement.dataset.theme = th.value;
+th.addEventListener('change', () => { document.documentElement.dataset.theme = th.value; });
+</script>
+</body>
+</html>

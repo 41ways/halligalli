@@ -1,4 +1,10 @@
 :root{
+  /* 모양 — html[data-shape] 로 바뀐다 */
+  --r-panel:20px; --r-lg:16px; --r-box:12px; --r-sm:8px; --r-card:11px; --r-pill:99px;
+  --bd:1px;
+  --sh-panel:0 30px 70px -40px rgba(0,0,0,.8);
+  --sh-table:0 26px 64px -34px rgba(0,0,0,.55);
+  --sh-card:0 9px 22px -12px rgba(0,0,0,.9);
   --bg:#0c1411; --felt:#143028; --felt2:#0e211d;
   --page-bg:radial-gradient(1100px 640px at 50% -12%,#1d4539 0%,transparent 62%),#0c1411;
   --line:rgba(255,255,255,.10); --line2:rgba(255,255,255,.18);
@@ -28,8 +34,8 @@ b{font-weight:800}
 .screen.game{align-items:flex-start;height:100%;min-height:0}
 .panel{
   width:100%;max-width:430px;background:var(--panelbg);
-  border:1px solid var(--line);border-radius:20px;padding:26px 24px;
-  box-shadow:0 30px 70px -40px #000;
+  border:var(--bd) solid var(--line);border-radius:var(--r-panel);padding:26px 24px;
+  box-shadow:var(--sh-panel);
 }
 .panel.wide{max-width:520px}
 .logo{font-size:30px;margin:0 0 6px;letter-spacing:-.03em}
@@ -39,7 +45,7 @@ b{font-weight:800}
 .btn{
   font:inherit;font-size:14px;font-weight:600;color:var(--text);
   background:var(--raise);border:1px solid var(--line2);
-  border-radius:11px;padding:10px 15px;cursor:pointer;white-space:nowrap;
+  border-radius:var(--r-box);padding:10px 15px;cursor:pointer;white-space:nowrap;
   transition:background .15s,transform .07s,border-color .15s;
 }
 .btn:hover{background:var(--raise2)}
@@ -47,12 +53,12 @@ b{font-weight:800}
 .btn.primary{background:var(--gold);color:var(--onaccent);border-color:transparent;font-weight:800}
 .btn.primary:hover{background:color-mix(in srgb,var(--gold) 84%,#fff)}
 .btn.big{padding:13px 18px;font-size:15px;width:100%}
-.btn.tiny{padding:5px 10px;font-size:12px;border-radius:8px}
+.btn.tiny{padding:5px 10px;font-size:12px;border-radius:var(--r-sm)}
 .btn:disabled{opacity:.4;cursor:not-allowed}
 
 input,select{
   font:inherit;color:var(--text);background:var(--field);
-  border:1px solid var(--line2);border-radius:11px;padding:11px 13px;outline:none;
+  border:var(--bd) solid var(--line2);border-radius:var(--r-box);padding:11px 13px;outline:none;
   transition:border-color .15s,box-shadow .15s;
 }
 input:focus,select:focus{border-color:color-mix(in srgb,var(--gold) 65%,transparent);box-shadow:0 0 0 4px color-mix(in srgb,var(--gold) 14%,transparent)}
@@ -79,7 +85,7 @@ select{cursor:pointer}
 /* ── 대기실 ── */
 .codebox{
   display:flex;align-items:center;justify-content:space-between;gap:14px;
-  background:var(--sink);border:1px solid var(--line);border-radius:15px;
+  background:var(--sink);border:var(--bd) solid var(--line);border-radius:var(--r-lg);
   padding:14px 16px;margin-bottom:16px;
 }
 .codelabel{font-size:11.5px;color:var(--muted);font-weight:600;margin-bottom:3px}
@@ -89,11 +95,11 @@ select{cursor:pointer}
 .lp{
   display:flex;align-items:center;gap:10px;font-size:14px;
   background:var(--raise);border:1px solid var(--line);
-  border-radius:12px;padding:10px 13px;
+  border-radius:var(--r-box);padding:10px 13px;
 }
-.lp .av{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-size:14px;background:var(--raise2)}
+.lp .av{width:26px;height:26px;border-radius:var(--r-sm);display:grid;place-items:center;font-size:14px;background:var(--raise2)}
 .lp .nm{font-weight:700}
-.lp .tagx{font-size:11px;color:var(--muted);background:var(--raise);padding:2px 7px;border-radius:99px}
+.lp .tagx{font-size:11px;color:var(--muted);background:var(--raise);padding:2px 7px;border-radius:var(--r-pill)}
 .lp .sp{flex:1}
 .lp .x{color:var(--muted);background:none;border:none;cursor:pointer;font-size:16px;padding:2px 6px;line-height:1}
 .lp .x:hover{color:var(--miss)}
@@ -114,7 +120,7 @@ select{cursor:pointer}
 .spacer{flex:1}
 .pill{
   font-size:12px;color:var(--muted);background:var(--raise);
-  border:1px solid var(--line);border-radius:99px;padding:5px 11px;font-weight:700;white-space:nowrap;
+  border:var(--bd) solid var(--line);border-radius:var(--r-pill);padding:5px 11px;font-weight:700;white-space:nowrap;
 }
 #barCode{letter-spacing:.12em;color:var(--gold)}
 #barTurn{color:var(--text)}
@@ -122,14 +128,14 @@ select{cursor:pointer}
 .table{
   width:100%;max-width:1040px;margin:0 auto;
   background:linear-gradient(160deg,var(--felt),var(--felt2));
-  border:1px solid var(--line);border-radius:20px;padding:14px;
-  box-shadow:inset 0 1px 0 color-mix(in srgb,var(--text) 7%,transparent),0 26px 64px -34px rgba(0,0,0,.55);
+  border:var(--bd) solid var(--line);border-radius:var(--r-panel);padding:14px;
+  box-shadow:inset 0 1px 0 color-mix(in srgb,var(--text) 7%,transparent),var(--sh-table);
   transition:box-shadow .25s,border-color .25s;
 }
 .table.myturn{
   border-color:color-mix(in srgb,var(--gold) 60%,transparent);
   box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--gold) 40%,transparent),
-             0 26px 64px -34px rgba(0,0,0,.55);
+             var(--sh-table);
 }
 
 /* ── 보드 위 툴바 ── */
@@ -144,7 +150,7 @@ select{cursor:pointer}
 .mp{
   flex:1;font:inherit;cursor:pointer;text-align:left;
   display:flex;flex-direction:column;gap:1px;
-  background:var(--raise);border:1px solid var(--line2);border-radius:12px;
+  background:var(--raise);border:var(--bd) solid var(--line2);border-radius:var(--r-box);
   padding:10px 13px;color:var(--text);transition:all .15s;
 }
 .mp b{font-size:14px;font-weight:800}
@@ -156,7 +162,7 @@ select{cursor:pointer}
 /* 지금 깔린 특수 카드가 무엇을 시키는지 */
 .spchip{
   display:flex;align-items:center;gap:7px;font-size:13px;font-weight:800;
-  border-radius:99px;padding:6px 14px;border:1px solid;white-space:nowrap;
+  border-radius:var(--r-pill);padding:6px 14px;border:var(--bd) solid;white-space:nowrap;
   animation:vpop .24s ease-out;
 }
 .spchip .sep{opacity:.45;margin:0 2px}
@@ -179,7 +185,7 @@ select{cursor:pointer}
 .turnnow{
   display:flex;align-items:center;gap:8px;
   font-size:14px;font-weight:700;color:var(--muted);
-  border:1px solid var(--line2);border-radius:99px;padding:6px 15px;
+  border:var(--bd) solid var(--line2);border-radius:var(--r-pill);padding:6px 15px;
   background:var(--raise);transition:all .2s;
 }
 .turnnow .tdot{width:8px;height:8px;border-radius:50%;background:var(--dot);flex:none}
@@ -203,10 +209,10 @@ select{cursor:pointer}
   position:absolute;inset:0;z-index:12;
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
   background:color-mix(in srgb,var(--felt) 55%,transparent);
-  backdrop-filter:blur(1.5px);border-radius:16px;
+  backdrop-filter:blur(1.5px);border-radius:var(--r-panel);
 }
 .startgate .btn.primary{
-  font-size:22px;font-weight:800;padding:20px 52px;border-radius:16px;
+  font-size:22px;font-weight:800;padding:20px 52px;border-radius:var(--r-lg);
   letter-spacing:-.01em;box-shadow:0 16px 40px -18px rgba(0,0,0,.7);
   animation:gopulse 1.8s ease-in-out infinite;
 }
@@ -217,13 +223,13 @@ select{cursor:pointer}
 .startgate .waitmsg{
   margin:0;font-size:14px;font-weight:700;color:var(--text);
   background:var(--surface);border:1px solid var(--line2);
-  border-radius:99px;padding:9px 20px;
+  border-radius:var(--r-pill);padding:9px 20px;
 }
 
 .switch{display:inline-flex;align-items:center;gap:8px;cursor:pointer;user-select:none}
 .switch input{position:absolute;opacity:0;width:0;height:0}
 .switch .track{
-  width:38px;height:22px;border-radius:99px;flex:none;position:relative;
+  width:38px;height:22px;border-radius:var(--r-pill);flex:none;position:relative;
   background:var(--sink);border:1px solid var(--line2);
   transition:background .18s,border-color .18s;
 }
@@ -286,6 +292,7 @@ select{cursor:pointer}
 }
 .slot.deck-slot{left:calc(50% + var(--c) * var(--rx));top:calc(50% + var(--s) * var(--ry))}
 .slot.pile-slot{left:calc(50% + var(--c) * var(--px));top:calc(50% + var(--s) * var(--py))}
+.slot.dealing .stack > .top{visibility:hidden}   /* 다 뒤집히기 전엔 앞면을 감춘다 */
 .slot.out{opacity:.3}
 .slot.dc{opacity:.55}
 .slot.mine .nm{color:var(--hit)}
@@ -301,7 +308,7 @@ select{cursor:pointer}
 .tagline{
   position:absolute;left:50%;bottom:11px;transform:translateX(-50%);z-index:4;
   display:flex;flex-direction:column;align-items:center;gap:0;
-  padding:3px 9px;border-radius:9px;white-space:nowrap;
+  padding:3px 9px;border-radius:var(--r-sm);white-space:nowrap;
   background:var(--surface);
   border:1px solid var(--line2);
   transition:background .2s,border-color .2s;
@@ -315,7 +322,7 @@ select{cursor:pointer}
 .slot.turn .who .dot{background:var(--gold);box-shadow:0 0 0 4px color-mix(in srgb,var(--gold) 22%,transparent)}
 .slot:not(.turn) .tagline{opacity:.72}
 .slot.turn .stack.deck > .top{
-  outline:3px solid var(--gold);outline-offset:3px;border-radius:11px;
+  outline:3px solid var(--gold);outline-offset:3px;border-radius:var(--r-card);
   animation:ringpulse 1.6s ease-in-out infinite;
 }
 @keyframes ringpulse{
@@ -325,7 +332,7 @@ select{cursor:pointer}
 .turnbadge{
   font-size:9.5px;font-weight:800;letter-spacing:.02em;
   background:var(--gold);color:var(--onaccent);
-  border-radius:99px;padding:1px 6px;margin-left:2px;
+  border-radius:var(--r-pill);padding:1px 6px;margin-left:2px;
 }
 .counts{font-size:9.5px;color:var(--muted);display:flex;gap:6px;align-items:baseline;line-height:1.4}
 .counts .hand{display:inline-flex;align-items:baseline;margin-right:2px}
@@ -344,16 +351,16 @@ select{cursor:pointer}
 .stack{position:relative;width:var(--cw);height:var(--ch);flex:none}
 .stack.deck{width:calc(var(--cw) * var(--deckScale));height:calc(var(--ch) * var(--deckScale))}
 .lay{
-  position:absolute;inset:0;border-radius:11px;z-index:0;
+  position:absolute;inset:0;border-radius:var(--r-card);z-index:0;
   background:var(--pileedge);border:1px solid rgba(0,0,0,.24);
 }
 .stack.deck .lay{background:var(--deckedge);border-color:rgba(0,0,0,.35)}
-.stack > .top, .flyer .face > .top{position:absolute;inset:0;z-index:2;border-radius:11px}
+.stack > .top, .flyer .face > .top{position:absolute;inset:0;z-index:2;border-radius:var(--r-card)}
 
 .card{
   position:relative;container-type:size;
-  background:var(--card);border:1px solid rgba(0,0,0,.22);overflow:hidden;
-  box-shadow:0 9px 22px -12px rgba(0,0,0,.9), inset 0 0 0 4px rgba(0,0,0,.045);
+  background:var(--card);border:var(--bd) solid rgba(0,0,0,.22);overflow:hidden;
+  box-shadow:var(--sh-card), inset 0 0 0 4px rgba(0,0,0,.045);
 }
 .card .pip{
   position:absolute;font-size:34cqw;line-height:1;
@@ -367,7 +374,7 @@ select{cursor:pointer}
 .top.back{
   container-type:size;border:1px solid rgba(0,0,0,.35);
   background:repeating-linear-gradient(45deg,var(--back1) 0 7px,var(--back2) 7px 14px);
-  box-shadow:0 9px 22px -12px rgba(0,0,0,.9), inset 0 0 0 4px var(--backline), inset 0 0 0 5px rgba(0,0,0,.2);
+  box-shadow:var(--sh-card), inset 0 0 0 4px var(--backline), inset 0 0 0 5px rgba(0,0,0,.2);
   display:grid;place-items:center;
 }
 .top.back::after{content:"🔔";font-size:30cqw;opacity:.85;filter:grayscale(.2)}
@@ -379,7 +386,7 @@ select{cursor:pointer}
 /* 손패에서 뽑아 → 공중에서 뒤집고 → 종 옆에 내려놓는 모션 */
 .flyer{position:fixed;z-index:60;pointer-events:none;animation:deal var(--ms) cubic-bezier(.32,.78,.3,1) forwards}
 .flyer.sweep{animation:sweep var(--ms) cubic-bezier(.4,0,.2,1) forwards}
-.flyer .face{position:absolute;inset:0;border-radius:11px;backface-visibility:hidden;overflow:hidden}
+.flyer .face{position:absolute;inset:0;border-radius:var(--r-card);backface-visibility:hidden;overflow:hidden}
 .flyer .front{transform:rotateY(0deg)}
 .flyer .back{
   container-type:size;transform:rotateY(180deg);
@@ -406,7 +413,7 @@ select{cursor:pointer}
 .chip{
   display:flex;align-items:center;gap:7px;user-select:none;pointer-events:none;
   background:var(--raise);border:1px solid var(--line);
-  border-radius:99px;padding:4px 12px 4px 10px;font-size:12.5px;font-weight:600;
+  border-radius:var(--r-pill);padding:4px 12px 4px 10px;font-size:12.5px;font-weight:600;
   transition:background .15s,border-color .15s;
 }
 .chip .em{font-size:16px}
@@ -417,7 +424,7 @@ select{cursor:pointer}
 .actionrow{display:flex;gap:10px;margin-top:10px;align-items:stretch}
 #entry{
   flex:1;font-size:20px;font-weight:800;letter-spacing:.02em;text-align:center;
-  border-width:2px;border-radius:13px;padding:14px 16px;
+  border-width:2px;border-radius:var(--r-box);padding:13px 16px;
 }
 #entry::placeholder{
   font-weight:500;letter-spacing:0;font-size:14px;
@@ -430,7 +437,7 @@ select{cursor:pointer}
 .btn.flip{
   position:relative;overflow:hidden;min-width:132px;
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
-  background:var(--raise);border-radius:13px;
+  background:var(--raise);border-radius:var(--r-box);
 }
 .btn.flip b{font-size:14px}
 .btn.flip small{font-size:10.5px;color:var(--muted);font-weight:600}
@@ -448,8 +455,8 @@ select{cursor:pointer}
 
 .log{
   margin-top:9px;height:46px;overflow-y:auto;font-size:12.5px;line-height:1.75;
-  color:var(--muted);background:var(--sink);border:1px solid var(--line);
-  border-radius:12px;padding:9px 13px;
+  color:var(--muted);background:var(--sink);border:var(--bd) solid var(--line);
+  border-radius:var(--r-box);padding:9px 13px;
 }
 .log div:first-child{color:var(--text)}
 
@@ -458,7 +465,7 @@ select{cursor:pointer}
 .verdict{
   position:fixed;left:50%;top:10px;transform:translateX(-50%);
   z-index:30;text-align:center;pointer-events:none;
-  padding:16px 28px;border-radius:18px;border:2px solid;min-width:250px;
+  padding:16px 28px;border-radius:var(--r-lg);border:2px solid;min-width:250px;
   background:var(--surface);backdrop-filter:blur(6px);
   animation:vpop .26s cubic-bezier(.2,1.35,.4,1);
 }
@@ -473,7 +480,7 @@ select{cursor:pointer}
 
 .delta{
   position:absolute;top:-10px;right:-14px;z-index:3;font-size:15px;font-weight:900;
-  padding:2px 9px;border-radius:99px;animation:rise .45s ease-out;
+  padding:2px 9px;border-radius:var(--r-pill);animation:rise .45s ease-out;
   font-variant-numeric:tabular-nums;
 }
 .delta.hit{color:var(--onhit);background:var(--hit)}
@@ -490,8 +497,8 @@ select{cursor:pointer}
 .rank{display:flex;flex-direction:column;gap:6px;margin:16px 0 4px}
 .rk{
   display:flex;align-items:center;gap:9px;font-size:13px;text-align:left;
-  background:var(--raise);border:1px solid var(--line);
-  border-radius:11px;padding:9px 12px;
+  background:var(--raise);border:var(--bd) solid var(--line);
+  border-radius:var(--r-box);padding:9px 12px;
 }
 .rk.first{border-color:color-mix(in srgb,var(--gold) 58%,transparent);background:color-mix(in srgb,var(--gold) 12%,transparent)}
 .rk.mine{outline:1px solid color-mix(in srgb,var(--hit) 34%,transparent)}
@@ -513,7 +520,7 @@ select{cursor:pointer}
 .helphead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
 .helphead h2{margin:0;font-size:19px;font-weight:800;letter-spacing:-.02em}
 .helpmode{
-  display:inline-block;font-size:11.5px;font-weight:800;border-radius:99px;
+  display:inline-block;font-size:11.5px;font-weight:800;border-radius:var(--r-pill);
   padding:3px 11px;background:var(--gold);color:var(--onaccent);margin-bottom:14px;
 }
 .helpsec{margin-bottom:18px}
@@ -523,7 +530,7 @@ select{cursor:pointer}
 .helplist .row{display:flex;gap:10px;align-items:flex-start}
 .helplist .key{
   flex:0 0 auto;min-width:62px;font-weight:800;font-size:12.5px;
-  background:var(--raise);border:1px solid var(--line2);border-radius:8px;
+  background:var(--raise);border:var(--bd) solid var(--line2);border-radius:var(--r-sm);
   padding:2px 9px;text-align:center;
 }
 .helplist .txt{color:var(--ink2,var(--text));opacity:.92}
@@ -532,14 +539,15 @@ select{cursor:pointer}
 .overlay .big{font-size:30px;font-weight:900;letter-spacing:-.03em;margin-bottom:10px}
 .overlay .sub{color:var(--muted);font-size:14px;line-height:1.7}
 .credit{
-  position:fixed;right:11px;bottom:7px;z-index:4;
-  font-size:9.5px;font-weight:600;letter-spacing:.08em;
-  color:var(--muted);opacity:.32;pointer-events:none;user-select:none;
+  text-align:right;width:100%;max-width:1040px;margin-left:auto;margin-right:auto;
+  margin-top:7px;font-size:9.5px;font-weight:600;letter-spacing:.08em;
+  color:var(--muted);opacity:.34;pointer-events:none;user-select:none;
 }
+.panel .credit{margin-top:12px}
 
 .toast{
   position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:40;
-  background:var(--surface);border:1px solid var(--line2);border-radius:12px;
+  background:var(--surface);border:var(--bd) solid var(--line2);border-radius:var(--r-box);
   padding:11px 17px;font-size:13.5px;font-weight:600;box-shadow:0 16px 40px -18px #000;
 }
 
@@ -610,7 +618,83 @@ html[data-theme="candy"]{
 /* 테마 선택기 */
 .themerow{display:flex;align-items:center;gap:8px;margin-top:16px;font-size:12px;color:var(--muted);font-weight:600}
 .themerow select{flex:1;padding:8px 11px;font-size:13px}
-#themeGame{padding:5px 9px;font-size:12px;border-radius:8px}
+#themeGame,#shapeGame{padding:5px 9px;font-size:12px;border-radius:var(--r-sm)}
+
+/* ─────────────── 모양 시안 ───────────────
+   html[data-shape] 로 갈아끼운다. 기본값은 round(:root). */
+
+[data-shape="soft"], .sh-soft{
+  --r-panel:12px; --r-lg:10px; --r-box:8px; --r-sm:6px; --r-card:8px; --r-pill:10px;
+  --bd:1px;
+  --sh-panel:0 22px 50px -34px rgba(0,0,0,.7);
+  --sh-table:0 18px 44px -30px rgba(0,0,0,.5);
+  --sh-card:0 7px 16px -10px rgba(0,0,0,.8);
+}
+
+[data-shape="sharp"], .sh-sharp{
+  --r-panel:4px; --r-lg:4px; --r-box:3px; --r-sm:3px; --r-card:4px; --r-pill:4px;
+  --bd:1px;
+  --sh-panel:0 16px 40px -30px rgba(0,0,0,.7);
+  --sh-table:0 14px 34px -28px rgba(0,0,0,.5);
+  --sh-card:0 6px 14px -9px rgba(0,0,0,.75);
+}
+
+[data-shape="zero"], .sh-zero{
+  --r-panel:0px; --r-lg:0px; --r-box:0px; --r-sm:0px; --r-card:0px; --r-pill:0px;
+  --bd:2px;
+  --sh-panel:7px 7px 0 color-mix(in srgb,var(--text) 16%,transparent);
+  --sh-table:6px 6px 0 color-mix(in srgb,var(--text) 14%,transparent);
+  --sh-card:4px 4px 0 rgba(0,0,0,.28);
+}
+[data-shape="zero"] .btn, .sh-zero .btn,
+[data-shape="zero"] input, .sh-zero input,
+[data-shape="zero"] select, .sh-zero select{border-width:2px}
+[data-shape="zero"] .switch .knob, .sh-zero .switch .knob{border-radius:0}
+[data-shape="zero"] .turnnow .tdot, .sh-zero .turnnow .tdot,
+[data-shape="zero"] .who .dot, .sh-zero .who .dot{border-radius:0}
+
+/* 모서리를 깎은 팔각 — 카드와 패널 모서리를 잘라낸다 */
+[data-shape="cut"], .sh-cut{
+  --r-panel:0px; --r-lg:0px; --r-box:0px; --r-sm:0px; --r-card:0px; --r-pill:0px;
+  --bd:1px;
+  --sh-panel:0 20px 46px -32px rgba(0,0,0,.7);
+  --sh-table:0 16px 40px -30px rgba(0,0,0,.5);
+  --sh-card:0 6px 14px -9px rgba(0,0,0,.75);
+}
+[data-shape="cut"] .table, .sh-cut .table,
+[data-shape="cut"] .panel, .sh-cut .panel{
+  clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px);
+}
+[data-shape="cut"] .card, .sh-cut .card,
+[data-shape="cut"] .top.back, .sh-cut .top.back{
+  clip-path:polygon(9px 0,100% 0,100% calc(100% - 9px),calc(100% - 9px) 100%,0 100%,0 9px);
+}
+
+/* 선만 — 그림자 없이 테두리로만 구분한다 */
+[data-shape="line"], .sh-line{
+  --r-panel:3px; --r-lg:3px; --r-box:2px; --r-sm:2px; --r-card:3px; --r-pill:3px;
+  --bd:1px;
+  --sh-panel:none; --sh-table:none; --sh-card:none;
+}
+[data-shape="line"] .line-strong, .sh-line .line-strong{}
+[data-shape="line"] .table, .sh-line .table,
+[data-shape="line"] .card, .sh-line .card,
+[data-shape="line"] .top.back, .sh-line .top.back{border-color:color-mix(in srgb,var(--text) 42%,transparent)}
+
+/* 두꺼운 테두리 스티커 — 살짝만 둥글고 선이 굵다 */
+[data-shape="thick"], .sh-thick{
+  --r-panel:8px; --r-lg:7px; --r-box:6px; --r-sm:5px; --r-card:7px; --r-pill:7px;
+  --bd:2px;
+  --sh-panel:none; --sh-table:none; --sh-card:none;
+}
+[data-shape="thick"] .card, .sh-thick .card,
+[data-shape="thick"] .top.back, .sh-thick .top.back{border-width:2px;border-color:color-mix(in srgb,var(--text) 55%,transparent)}
+[data-shape="thick"] .btn, .sh-thick .btn,
+[data-shape="thick"] input, .sh-thick input,
+[data-shape="thick"] select, .sh-thick select{border-width:2px}
+
+.shaperow{display:flex;gap:8px;align-items:center;margin-top:9px;font-size:12px;color:var(--muted);font-weight:600}
+.shaperow select{flex:1;padding:8px 11px;font-size:13px}
 
 @media (max-width:620px){
   :root{--cw:64px; --ch:90px}
