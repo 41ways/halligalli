@@ -20,20 +20,36 @@ const PIPS = {
   5: [[30,26,-13],[70,26,10],[50,50,-3],[30,74,9],[70,74,-10]],
 };
 
+/** 받침이 있으면 앞쪽, 없으면 뒤쪽 조사를 붙인다 — "라임은 / 딸기는" */
+function hasBatchim(w) {
+  const c = String(w).charCodeAt(String(w).length - 1);
+  if (!(c >= 0xAC00 && c <= 0xD7A3)) return false;
+  return (c - 0xAC00) % 28 !== 0;
+}
+const josa = (w, withB, withoutB) => w + (hasBatchim(w) ? withB : withoutB);
+
 const $ = id => document.getElementById(id);
 const el = {};
 ['scLogin','scLobby','scGame','inName','inCode','btnCreate','btnJoin','loginHint',
  'roomCode','btnCopy','lobbyPlayers','hostBox','optDiff','optLimit',
- 'btnAddBot','btnStart','lobbyHint','barCode','barTurn','btnLeave','seats','tally',
+ 'btnAddBot','btnStart','lobbyHint','barCode','barTurn','btnLeave','tally',
  'entry','btnFlip','flipTimer','status','log','overlay','ovTitle','ovSub','btnAgain',
- 'btnToLobby','toast','verdict','ovRank'].forEach(k => el[k] = $(k));
+ 'btnToLobby','toast','verdict','ovRank','theme','themeGame','board','slots','bell','btnSound'].forEach(k => el[k] = $(k));
 
 let ws = null, me = null, S = null, clockOffset = 0;
 let flashInfo = null, flashUntil = 0, verdictTimer = null;
 
 /* ───────────── 소리 ───────────── */
 let actx = null;
+let muted = localStorage.getItem('hgMute') === '1';
+function setMuted(v) {
+  muted = v;
+  localStorage.setItem('hgMute', v ? '1' : '0');
+  el.btnSound.textContent = v ? '🔇' : '🔊';
+  el.btnSound.title = v ? '소리 켜기' : '소리 끄기';
+}
 function tone(freq, dur, type, gain) {
+  if (muted) return;
   try {
     if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
     const o = actx.createOscillator(), g = actx.createGain();
@@ -179,30 +195,80 @@ function stackHTML(kind, n, inner) {
   return `<div class="stack ${kind}" data-n="${n}">${layers(n)}${inner}</div>`;
 }
 
-/* ── 게임 ── */
-function renderGame(prev) {
-  el.seats.innerHTML = S.players.map(p => {
-    const deck = stackHTML('deck', p.hand, p.hand > 0
-      ? '<div class="top back"></div>'
-      : '<div class="top card empty">빈 덱</div>');
-    const pile = stackHTML('pile', p.pile, p.top
-      ? cardFace(p.top)
-      : '<div class="top card empty">앞면 없음</div>');
+/* ── 게임 ──
+   나를 아래쪽에 두고 시계 방향으로 자리를 잡는다.
+   손패 뭉치는 자기 쪽 바깥, 펼친 카드는 가운데 종 주변. */
+/** 종 → 펼친 카드 → 손패 뭉치 → 이름표가 세로로 겹치지 않게 실측으로 잡는다 */
+function layoutBoard() {
+  const decks = [...el.slots.querySelectorAll('.slot[data-role="deck"]')];
+  if (!decks.length) return;
+  const T = Math.max(...decks.map(d => {
+    const t = d.querySelector('.tagline');
+    return t ? t.offsetHeight : 40;
+  }));
+  const bellHalf = (el.bell.offsetHeight || 24) / 2;
+  const H = el.board.clientHeight;
+  const GAP = 7;
+
+  const maxCh = (H / 2 - bellHalf - GAP * 2 - 5 - T) / 2;
+  const ch = Math.max(44, Math.min(112, maxCh));
+  const slotH = ch + GAP + T;
+  const py = bellHalf + GAP - 1 + ch / 2;
+  const ry = py + ch / 2 + GAP - 1 + slotH / 2;
+
+  el.board.style.setProperty('--ch', ch + 'px');
+  el.board.style.setProperty('--py', py + 'px');
+  el.board.style.setProperty('--ry', ry + 'px');
+}
+window.addEventListener('resize', () => { if (S && S.phase !== 'lobby') layoutBoard(); });
+
+function seatAngles(n, myIdx) {
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const k = (i - myIdx + n) % n;
+    const a = (90 + k * 360 / n) * Math.PI / 180;
+    out[i] = { c: +Math.cos(a).toFixed(4), s: +Math.sin(a).toFixed(4) };
+  }
+  return out;
+}
+
+function renderGame() {
+  const n = S.players.length;
+  const myIdx = Math.max(0, S.players.findIndex(p => p.id === me));
+  const ang = seatAngles(n, myIdx);
+
+  el.slots.innerHTML = S.players.map((p, i) => {
     const fl = flashInfo && flashInfo.id === p.id && Date.now() < flashUntil ? flashInfo : null;
-    return `
-      <div class="seat${p.id === me ? ' me' : ''}${S.turn === p.id ? ' turn' : ''}${p.out ? ' out' : ''}${!p.connected && !p.bot ? ' dc' : ''}${fl ? ' ' + fl.kind : ''}" data-id="${p.id}">
-        <div class="who">
-          <span class="dot"></span>
-          <span class="nm">${esc(p.name)}</span>
-          ${p.bot ? '🤖' : ''}${!p.connected && !p.bot ? '📴' : ''}
+    const cls = [
+      p.id === me ? 'mine' : '', S.turn === p.id ? 'turn' : '', p.out ? 'out' : '',
+      (!p.connected && !p.bot) ? 'dc' : '', fl ? fl.kind : ''
+    ].filter(Boolean).join(' ');
+    const canFlip = p.id === me && S.turn === me && !S.resolving && !S.frozen && S.phase === 'playing';
+    const style = `--c:${ang[i].c};--s:${ang[i].s}`;
+
+    const deck = `
+      <div class="slot deck-slot ${cls}${canFlip ? ' canflip' : ''}" data-id="${p.id}" data-role="deck" style="${style}">
+        <div class="stacks">${stackHTML('deck', p.hand, p.hand > 0
+          ? '<div class="top back"></div>'
+          : '<div class="top card empty">빈 덱</div>')}</div>
+        <div class="tagline">
+          <div class="who"><span class="dot"></span><span class="nm">${esc(p.name)}</span>${p.bot ? '🤖' : ''}${!p.connected && !p.bot ? '📴' : ''}</div>
+          <div class="counts"><span>손패 <b>${p.hand}</b></span><span>앞면 <b>${p.pile}</b></span></div>
+          <div class="score"><span class="h">종 ${p.hits}</span> · <span class="m">오답 ${p.misses}</span></div>
+          ${p.out ? '<div class="badge">탈락</div>' : ''}
         </div>
-        <div class="stacks">${deck}${pile}</div>
-        <div class="counts"><span>손패 <b>${p.hand}</b></span><span>앞면 <b>${p.pile}</b></span></div>
-        ${p.hits || p.misses ? `<div class="score"><span class="h">종 ${p.hits}</span> · <span class="m">오답 ${p.misses}</span></div>` : ''}
-        ${p.out ? '<span class="badge">탈락</span>' : ''}
         ${fl ? `<span class="delta ${fl.kind}">${fl.delta}</span>` : ''}
       </div>`;
+
+    const pile = `
+      <div class="slot pile-slot ${cls}" data-id="${p.id}" data-role="pile" style="${style}">
+        <div class="stacks">${stackHTML('pile', p.pile, p.top ? cardFace(p.top) : '')}</div>
+      </div>`;
+
+    return deck + pile;
   }).join('');
+
+  layoutBoard();
 
   // 클릭으로는 종을 칠 수 없다 — 오직 타자로만. 아래는 '이렇게 치면 된다'는 안내.
   el.tally.innerHTML = FRUITS.map(f => `
@@ -241,46 +307,50 @@ function tickTimer() {
 setInterval(tickTimer, 60);
 
 /* ───────────── 애니메이션 ───────────── */
-function seatEl(id) { return el.seats.querySelector(`.seat[data-id="${id}"]`); }
+function slotEl(id, role) {
+  return el.slots.querySelector(`.slot[data-id="${id}"][data-role="${role}"]`);
+}
+function ringBell() {
+  el.bell.classList.remove('ring'); void el.bell.offsetWidth;
+  el.bell.classList.add('ring');
+  setTimeout(() => el.bell.classList.remove('ring'), 700);
+}
 
 function flyer(fromEl, toEl, innerFront, spin, ms) {
   if (!fromEl || !toEl) return;
   const a = fromEl.getBoundingClientRect(), b = toEl.getBoundingClientRect();
   const f = document.createElement('div');
-  f.className = 'flyer';
+  f.className = 'flyer' + (spin ? '' : ' sweep');
   f.innerHTML = `<div class="face back"></div><div class="face front">${innerFront || ''}</div>`;
-  f.style.cssText += `left:${a.left}px;top:${a.top}px;width:${a.width}px;height:${a.height}px;` +
-                     `transform:perspective(900px) rotateY(${spin ? 180 : 0}deg)`;
+  f.style.cssText +=
+    `--x0:${a.left}px;--y0:${a.top}px;--w0:${a.width}px;--h0:${a.height}px;` +
+    `--x1:${b.left}px;--y1:${b.top}px;--w1:${b.width}px;--h1:${b.height}px;--ms:${ms}ms;`;
   document.body.appendChild(f);
-  void f.offsetWidth;                       // 시작 위치를 확정시킨 뒤 트랜지션을 건다
-  f.style.transitionDuration = (ms || 380) + 'ms';
-  f.style.left = b.left + 'px'; f.style.top = b.top + 'px';
-  f.style.width = b.width + 'px'; f.style.height = b.height + 'px';
-  f.style.transform = 'perspective(900px) rotateY(0deg)';
-  setTimeout(() => f.remove(), (ms || 380) + 60);
+  setTimeout(() => f.remove(), ms + 90);
 }
 
-/** 손패에서 한 장을 뽑아 뒤집어 내려놓는 연출 */
+/** 손패에서 한 장을 뽑아 → 공중에서 뒤집으며 → 종 옆에 내려놓는다 */
 function animFlip(playerId, card) {
-  const seat = seatEl(playerId);
-  if (!seat) return;
-  const deck = seat.querySelector('.deck'), pile = seat.querySelector('.pile');
-  const top = pile && pile.querySelector('.top');
-  if (top) { top.style.visibility = 'hidden'; setTimeout(() => { top.style.visibility = ''; }, 360); }
-  flyer(deck, pile, cardFace(card), true, 380);
+  const deck = slotEl(playerId, 'deck'), pile = slotEl(playerId, 'pile');
+  if (!deck || !pile) return;
+  const from = deck.querySelector('.stack'), to = pile.querySelector('.stack');
+  const top = to && to.querySelector('.top');
+  if (top) { top.style.visibility = 'hidden'; setTimeout(() => { top.style.visibility = ''; }, 430); }
+  flyer(from, to, cardFace(card), true, 460);
 }
 
 /** 성공한 사람이 판에 깔린 카드를 전부 쓸어 담는 연출 */
 function animCollect(winnerId) {
-  const win = seatEl(winnerId);
+  const win = slotEl(winnerId, 'deck');
   if (!win) return;
-  const target = win.querySelector('.deck');
+  ringBell();
+  const target = win.querySelector('.stack');
   for (const p of S.players) {
-    const seat = seatEl(p.id);
-    if (!seat) continue;
-    const pile = seat.querySelector('.pile');
-    if (!pile || !pile.querySelector('.card:not(.empty)')) continue;
-    flyer(pile, target, '', false, 460);
+    const pile = slotEl(p.id, 'pile');
+    if (!pile) continue;
+    const st = pile.querySelector('.stack');
+    if (!st || !st.querySelector('.card:not(.empty)')) continue;
+    flyer(st, target, '', false, 520);
   }
   win.classList.add('win');
   setTimeout(() => win.classList.remove('win'), 700);
@@ -321,17 +391,17 @@ function onEvent(m) {
       if (mine) { sfxRight(); flash('good'); } else sfxWrong();
       el.status.innerHTML = mine
         ? `<span class="ok">성공!</span> ${f.emoji} ${f.ko} 5개 — <b>${m.gained}장</b> 획득${m.rt != null ? ` · ${m.rt}ms` : ''}`
-        : `<b>${name}</b>가 먼저 <b>${f.ko}</b>를 외쳤습니다 — ${m.gained}장`;
+        : `<b>${name}</b>${hasBatchim(name) ? '이' : '가'} 먼저 <b>${f.ko}</b>${hasBatchim(f.ko) ? '을' : '를'} 외쳤습니다 — ${m.gained}장`;
       log(`${f.emoji} <b>${name}</b> 성공 → +${m.gained}장${m.rt != null ? ` <span style="opacity:.6">(${m.rt}ms)</span>` : ''}`, 'win');
     } else {
       markSeat(m.by, 'miss', `−${m.given}`, 1700);
       showVerdict(
         `<div class="vw">✕ ${mine ? '내' : name} 오답</div>
-         <div class="vs">${f.emoji} ${f.ko}는 <b>${m.count}개</b>였습니다 · <b>−${m.given}장</b></div>`,
+         <div class="vs">${f.emoji} ${josa(f.ko, '은', '는')} <b>${m.count}개</b>였습니다 · <b>−${m.given}장</b></div>`,
         'no', 1700);
       if (mine) { sfxWrong(); flash('bad'); }
       el.status.innerHTML = mine
-        ? `<span class="no">틀렸어요!</span> ${f.ko}는 ${m.count}개 — 카드 ${m.given}장 지급`
+        ? `<span class="no">틀렸어요!</span> ${josa(f.ko, '은', '는')} ${m.count}개 — 카드 ${m.given}장 지급`
         : `<b>${name}</b> 오답 (${f.ko} ${m.count}개) — 카드를 받았습니다`;
       log(`✕ <b>${name}</b> 오답 · ${f.ko} ${m.count}개 → −${m.given}장`, 'lose');
     }
@@ -428,9 +498,9 @@ function doFlip() {
   send({ t: 'flip' });
 }
 el.btnFlip.addEventListener('click', doFlip);
-el.seats.addEventListener('click', e => {
-  const seat = e.target.closest('.seat');
-  if (seat && +seat.dataset.id === me) doFlip();
+el.slots.addEventListener('click', e => {
+  const slot = e.target.closest('.slot');
+  if (slot && +slot.dataset.id === me) doFlip();
 });
 document.addEventListener('click', e => {
   if (!el.scGame.hidden && !e.target.closest('button,select,input')) el.entry.focus();
@@ -470,7 +540,19 @@ el.btnLeave.addEventListener('click', () => {
   location.reload();
 });
 
+/* ───────────── 테마 ───────────── */
+function applyTheme(v) {
+  document.documentElement.dataset.theme = v;
+  localStorage.setItem('hgTheme', v);
+  el.theme.value = v; el.themeGame.value = v;
+}
+el.theme.addEventListener('change', () => applyTheme(el.theme.value));
+el.themeGame.addEventListener('change', () => applyTheme(el.themeGame.value));
+
 /* ───────────── 시작 ───────────── */
+applyTheme(localStorage.getItem('hgTheme') || 'felt');
+el.btnSound.addEventListener('click', () => setMuted(!muted));
+setMuted(muted);
 el.inName.value = localStorage.getItem('hgName') || '';
 const hash = location.hash.replace('#', '').toUpperCase();
 if (/^[A-Z0-9]{4}$/.test(hash)) {
