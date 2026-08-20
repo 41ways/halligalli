@@ -327,7 +327,13 @@ select{cursor:pointer}
   background:var(--gold);color:var(--onaccent);
   border-radius:99px;padding:1px 6px;margin-left:2px;
 }
-.counts{font-size:9.5px;color:var(--muted);display:flex;gap:6px;line-height:1.5}
+.counts{font-size:9.5px;color:var(--muted);display:flex;gap:6px;align-items:baseline;line-height:1.4}
+.counts .hand{display:inline-flex;align-items:baseline;margin-right:2px}
+.counts .cnt{
+  font-size:17px;font-weight:900;color:var(--text);letter-spacing:-.03em;
+  font-variant-numeric:tabular-nums;line-height:1;
+}
+.counts .unit{font-style:normal;font-size:9.5px;opacity:.65;margin-left:1px}
 .counts b{color:var(--text);font-variant-numeric:tabular-nums}
 .badge{font-size:9.5px;font-weight:800;color:var(--miss)}
 
@@ -413,7 +419,10 @@ select{cursor:pointer}
   flex:1;font-size:20px;font-weight:800;letter-spacing:.02em;text-align:center;
   border-width:2px;border-radius:13px;padding:14px 16px;
 }
-#entry::placeholder{font-weight:500;letter-spacing:0;font-size:15px}
+#entry::placeholder{
+  font-weight:500;letter-spacing:0;font-size:14px;
+  color:color-mix(in srgb,var(--muted) 45%,transparent);
+}
 #entry.good{border-color:var(--hit);background:color-mix(in srgb,var(--hit) 17%,transparent)}
 #entry.bad{border-color:var(--miss);background:color-mix(in srgb,var(--miss) 17%,transparent);animation:shake .28s}
 @keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}

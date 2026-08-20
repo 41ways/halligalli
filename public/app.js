@@ -291,7 +291,7 @@ function renderGame() {
         <div class="tagline">
           <div class="who"><span class="dot"></span><span class="nm">${esc(p.name)}</span>${p.bot ? '🤖' : ''}${!p.connected && !p.bot ? '📴' : ''}${S.turn === p.id && S.phase === 'playing' ? '<span class="turnbadge">차례</span>' : ''}</div>
           <div class="counts">
-            <span><b>${p.hand}</b>장</span>
+            <span class="hand"><b class="cnt">${p.hand}</b><i class="unit">장</i></span>
             <span class="h">종 ${p.hits}</span><span class="m">오답 ${p.misses}</span>
             ${p.out ? '<span class="badge">탈락</span>' : ''}
           </div>
