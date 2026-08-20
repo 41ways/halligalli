@@ -309,11 +309,12 @@ select{cursor:pointer}
 .stack > .top, .flyer .face > .top{position:absolute;inset:0;z-index:2;border-radius:11px}
 
 .card{
-  position:relative;background:var(--card);border:1px solid rgba(0,0,0,.22);overflow:hidden;
+  position:relative;container-type:size;
+  background:var(--card);border:1px solid rgba(0,0,0,.22);overflow:hidden;
   box-shadow:0 9px 22px -12px rgba(0,0,0,.9), inset 0 0 0 4px rgba(0,0,0,.045);
 }
 .card .pip{
-  position:absolute;font-size:calc(var(--cw) * .34);line-height:1;
+  position:absolute;font-size:34cqw;line-height:1;
   transform-origin:center;translate:-50% -50%;
   filter:drop-shadow(0 1px 1px rgba(0,0,0,.2));
 }
@@ -322,12 +323,12 @@ select{cursor:pointer}
   display:grid;place-items:center;color:var(--muted);font-size:11px;
 }
 .top.back{
-  border:1px solid rgba(0,0,0,.35);
+  container-type:size;border:1px solid rgba(0,0,0,.35);
   background:repeating-linear-gradient(45deg,var(--back1) 0 7px,var(--back2) 7px 14px);
   box-shadow:0 9px 22px -12px rgba(0,0,0,.9), inset 0 0 0 4px var(--backline), inset 0 0 0 5px rgba(0,0,0,.2);
   display:grid;place-items:center;
 }
-.top.back::after{content:"🔔";font-size:calc(var(--cw) * var(--deckScale) * .34);opacity:.85;filter:grayscale(.2)}
+.top.back::after{content:"🔔";font-size:30cqw;opacity:.85;filter:grayscale(.2)}
 
 /* 판을 쓸어 담은 사람의 덱이 순간 두꺼워지는 느낌 */
 .slot.win .stack.deck{animation:thicken .6s ease-out}
@@ -339,23 +340,23 @@ select{cursor:pointer}
 .flyer .face{position:absolute;inset:0;border-radius:11px;backface-visibility:hidden;overflow:hidden}
 .flyer .front{transform:rotateY(0deg)}
 .flyer .back{
-  transform:rotateY(180deg);
+  container-type:size;transform:rotateY(180deg);
   background:repeating-linear-gradient(45deg,var(--back1) 0 7px,var(--back2) 7px 14px);
   border:1px solid rgba(0,0,0,.35);
   box-shadow:inset 0 0 0 4px var(--backline), inset 0 0 0 5px rgba(0,0,0,.2);
   display:grid;place-items:center;
 }
-.flyer .back::after{content:"🔔";font-size:24px;opacity:.85}
+.flyer .back::after{content:"🔔";font-size:30cqw;opacity:.85}
 @keyframes deal{
-  0%{left:var(--x0);top:var(--y0);width:var(--w0);height:var(--h0);
-     transform:perspective(900px) rotateY(180deg) scale(1)}
-  48%{transform:perspective(900px) rotateY(84deg) scale(1.22)}
-  100%{left:var(--x1);top:var(--y1);width:var(--w1);height:var(--h1);
-     transform:perspective(900px) rotateY(0deg) scale(1)}
+  0%{transform:perspective(900px) translate(var(--dx),var(--dy)) scale(var(--sc)) rotateY(180deg)}
+  48%{transform:perspective(900px)
+      translate(calc(var(--dx) * .5),calc(var(--dy) * .5 - 18px))
+      scale(calc((var(--sc) + 1) / 2 * 1.16)) rotateY(84deg)}
+  100%{transform:perspective(900px) translate(0,0) scale(1) rotateY(0deg)}
 }
 @keyframes sweep{
-  0%{left:var(--x0);top:var(--y0);width:var(--w0);height:var(--h0);opacity:1;transform:scale(1)}
-  100%{left:var(--x1);top:var(--y1);width:var(--w1);height:var(--h1);opacity:.12;transform:scale(.78)}
+  0%{transform:translate(var(--dx),var(--dy)) scale(var(--sc));opacity:1}
+  100%{transform:translate(0,0) scale(.82);opacity:.12}
 }
 
 /* 과일 이름 안내 (클릭 불가 — 타자로만 친다) */

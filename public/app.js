@@ -363,9 +363,13 @@ function flyer(fromEl, toEl, innerFront, spin, ms) {
   const f = document.createElement('div');
   f.className = 'flyer' + (spin ? '' : ' sweep');
   f.innerHTML = `<div class="face back"></div><div class="face front">${innerFront || ''}</div>`;
+  // 도착 위치·크기에 두고 transform 으로만 움직인다.
+  // 폭/높이를 직접 애니메이션하면 안의 과일이 같이 커지지 않는다.
+  const dx = (a.left + a.width / 2) - (b.left + b.width / 2);
+  const dy = (a.top + a.height / 2) - (b.top + b.height / 2);
   f.style.cssText +=
-    `--x0:${a.left}px;--y0:${a.top}px;--w0:${a.width}px;--h0:${a.height}px;` +
-    `--x1:${b.left}px;--y1:${b.top}px;--w1:${b.width}px;--h1:${b.height}px;--ms:${ms}ms;`;
+    `left:${b.left}px;top:${b.top}px;width:${b.width}px;height:${b.height}px;` +
+    `--dx:${dx}px;--dy:${dy}px;--sc:${(a.width / b.width).toFixed(4)};--ms:${ms}ms;`;
   document.body.appendChild(f);
   setTimeout(() => f.remove(), ms + 90);
 }
