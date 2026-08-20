@@ -32,9 +32,9 @@ const $ = id => document.getElementById(id);
 const el = {};
 ['scLogin','scLobby','scGame','inName','inCode','btnCreate','btnJoin','loginHint',
  'roomCode','btnCopy','lobbyPlayers','hostBox','optDiff','optLimit',
- 'btnAddBot','btnStart','lobbyHint','barCode','barTurn','btnLeave','tally',
+ 'btnAddBot','btnStart','lobbyHint','barCode','btnLeave','tally',
  'entry','btnFlip','flipTimer','status','log','overlay','ovTitle','ovSub','btnAgain',
- 'btnToLobby','toast','verdict','ovRank','theme','themeGame','board','slots','bell','btnSound','bigToggle','btnGo','waitMsg'].forEach(k => el[k] = $(k));
+ 'btnToLobby','toast','verdict','ovRank','theme','themeGame','board','slots','bell','btnSound','bigToggle','btnGo','waitMsg','turnNow','startGate'].forEach(k => el[k] = $(k));
 
 let ws = null, me = null, S = null, clockOffset = 0;
 let flashInfo = null, flashUntil = 0, verdictTimer = null;
@@ -267,7 +267,7 @@ function renderGame() {
           ? '<div class="top back"></div>'
           : '<div class="top card empty">빈 덱</div>')}</div>
         <div class="tagline">
-          <div class="who"><span class="dot"></span><span class="nm">${esc(p.name)}</span>${p.bot ? '🤖' : ''}${!p.connected && !p.bot ? '📴' : ''}</div>
+          <div class="who"><span class="dot"></span><span class="nm">${esc(p.name)}</span>${p.bot ? '🤖' : ''}${!p.connected && !p.bot ? '📴' : ''}${S.turn === p.id && S.phase === 'playing' ? '<span class="turnbadge">차례</span>' : ''}</div>
           <div class="counts">
             <span><b>${p.hand}</b>장</span>
             <span class="h">종 ${p.hits}</span><span class="m">오답 ${p.misses}</span>
@@ -311,15 +311,22 @@ function renderGame() {
   el.btnFlip.disabled = S.turn !== me || S.phase !== 'playing';
 
   const ready = S.phase === 'ready';
-  el.btnGo.hidden = !(ready && isHost());
-  el.waitMsg.textContent = ready
-    ? (isHost() ? '준비되면 시작하세요' : '방장이 시작하기를 기다리는 중…')
-    : '';
+  el.startGate.hidden = !ready;
+  el.btnGo.hidden = !isHost();
+  el.waitMsg.textContent = isHost()
+    ? '모두 준비됐으면 시작하세요'
+    : '방장이 시작하기를 기다리는 중…';
+  el.waitMsg.hidden = isHost();
 
   const turnP = S.players.find(p => p.id === S.turn);
-  el.barTurn.textContent = S.phase !== 'playing' ? (ready ? '대기 중' : '—')
-    : (S.turn === me ? '내 차례' : `${turnP ? turnP.name : '?'} 차례`);
-  el.barTurn.style.color = S.turn === me ? 'var(--gold)' : '';
+  const myTurnNow = S.turn === me && S.phase === 'playing';
+  el.turnNow.className = 'turnnow' + (S.phase !== 'playing' ? '' : myTurnNow ? ' me' : ' active');
+  el.turnNow.querySelector('.ttext').innerHTML =
+    S.phase === 'ready' ? '시작 대기 중'
+    : S.phase !== 'playing' ? '—'
+    : myTurnNow ? '내 차례 — 카드를 뒤집으세요'
+    : `<b>${turnP ? esc(turnP.name) : '?'}</b> 차례`;
+  document.querySelector('.table').classList.toggle('myturn', myTurnNow);
 
   if (mine && mine.out) el.entry.placeholder = '탈락했습니다 — 관전 중';
   else el.entry.placeholder = '같은 과일 5개를 찾으면 이름을 치세요';

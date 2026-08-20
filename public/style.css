@@ -124,6 +124,12 @@ select{cursor:pointer}
   background:linear-gradient(160deg,var(--felt),var(--felt2));
   border:1px solid var(--line);border-radius:20px;padding:14px;
   box-shadow:inset 0 1px 0 color-mix(in srgb,var(--text) 7%,transparent),0 26px 64px -34px rgba(0,0,0,.55);
+  transition:box-shadow .25s,border-color .25s;
+}
+.table.myturn{
+  border-color:color-mix(in srgb,var(--gold) 60%,transparent);
+  box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--gold) 40%,transparent),
+             0 26px 64px -34px rgba(0,0,0,.55);
 }
 
 /* ── 보드 위 툴바 ── */
@@ -132,9 +138,51 @@ select{cursor:pointer}
   margin:0 2px 8px;min-height:32px;
 }
 .boardbar .spacer{flex:1}
-.boardbar .waitmsg{font-size:12.5px;color:var(--muted);font-weight:600}
-.boardbar .btn.primary{padding:7px 16px;font-size:13.5px}
-.boardbar .btn.primary[hidden]{display:none !important}
+
+/* 지금 누구 차례인지 — 보드 바로 위에 크게 */
+.turnnow{
+  display:flex;align-items:center;gap:8px;
+  font-size:14px;font-weight:700;color:var(--muted);
+  border:1px solid var(--line2);border-radius:99px;padding:6px 15px;
+  background:var(--raise);transition:all .2s;
+}
+.turnnow .tdot{width:8px;height:8px;border-radius:50%;background:var(--dot);flex:none}
+.turnnow b{color:var(--text)}
+.turnnow.active{border-color:var(--gold);color:var(--text);background:color-mix(in srgb,var(--gold) 14%,transparent)}
+.turnnow.active .tdot{background:var(--gold)}
+.turnnow.me{
+  background:var(--gold);color:var(--onaccent);border-color:transparent;
+  font-weight:800;font-size:14.5px;
+  animation:turnpulse 1.5s ease-in-out infinite;
+}
+.turnnow.me b{color:var(--onaccent)}
+.turnnow.me .tdot{background:var(--onaccent)}
+@keyframes turnpulse{
+  0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--gold) 55%,transparent)}
+  60%{box-shadow:0 0 0 10px transparent}
+}
+
+/* 보드 한가운데 시작 게이트 */
+.startgate{
+  position:absolute;inset:0;z-index:12;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+  background:color-mix(in srgb,var(--felt) 55%,transparent);
+  backdrop-filter:blur(1.5px);border-radius:16px;
+}
+.startgate .btn.primary{
+  font-size:22px;font-weight:800;padding:20px 52px;border-radius:16px;
+  letter-spacing:-.01em;box-shadow:0 16px 40px -18px rgba(0,0,0,.7);
+  animation:gopulse 1.8s ease-in-out infinite;
+}
+@keyframes gopulse{
+  0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--gold) 50%,transparent),0 16px 40px -18px rgba(0,0,0,.7)}
+  60%{box-shadow:0 0 0 18px transparent,0 16px 40px -18px rgba(0,0,0,.7)}
+}
+.startgate .waitmsg{
+  margin:0;font-size:14px;font-weight:700;color:var(--text);
+  background:var(--surface);border:1px solid var(--line2);
+  border-radius:99px;padding:9px 20px;
+}
 
 .switch{display:inline-flex;align-items:center;gap:8px;cursor:pointer;user-select:none}
 .switch input{position:absolute;opacity:0;width:0;height:0}
@@ -229,6 +277,20 @@ select{cursor:pointer}
 .who .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .who .dot{width:6px;height:6px;border-radius:50%;background:var(--dot);flex:none}
 .slot.turn .who .dot{background:var(--gold);box-shadow:0 0 0 4px color-mix(in srgb,var(--gold) 22%,transparent)}
+.slot:not(.turn) .tagline{opacity:.72}
+.slot.turn .stack.deck > .top{
+  outline:3px solid var(--gold);outline-offset:3px;border-radius:11px;
+  animation:ringpulse 1.6s ease-in-out infinite;
+}
+@keyframes ringpulse{
+  0%,100%{outline-color:var(--gold)}
+  55%{outline-color:color-mix(in srgb,var(--gold) 35%,transparent)}
+}
+.turnbadge{
+  font-size:9.5px;font-weight:800;letter-spacing:.02em;
+  background:var(--gold);color:var(--onaccent);
+  border-radius:99px;padding:1px 6px;margin-left:2px;
+}
 .counts{font-size:9.5px;color:var(--muted);display:flex;gap:6px;line-height:1.5}
 .counts b{color:var(--text);font-variant-numeric:tabular-nums}
 .badge{font-size:9.5px;font-weight:800;color:var(--miss)}

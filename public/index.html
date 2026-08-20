@@ -83,7 +83,6 @@
     <span class="brand">🔔 할리갈리</span>
     <span class="pill" id="barCode">----</span>
     <span class="spacer"></span>
-    <span class="pill" id="barTurn">—</span>
     <select id="themeGame" title="테마"><option value="felt">딥 그린 펠트</option><option value="neon">네온 아케이드</option><option value="paper">크래프트 페이퍼</option><option value="midnight">미드나잇 미니멀</option><option value="candy">캔디 팝</option></select>
     <button class="btn tiny" id="btnSound" title="소리 켜기/끄기" aria-label="소리">🔊</button>
     <button class="btn tiny" id="btnLeave">나가기</button>
@@ -99,13 +98,16 @@
         <span class="lbl">크게보기</span>
       </label>
       <span class="spacer"></span>
-      <span class="waitmsg" id="waitMsg"></span>
-      <button class="btn primary" id="btnGo">게임 시작</button>
+      <div class="turnnow" id="turnNow"><span class="tdot"></span><span class="ttext">—</span></div>
     </div>
 
     <div class="board" id="board">
       <div class="bell" id="bell">🔔</div>
       <div class="slots" id="slots"></div>
+      <div class="startgate" id="startGate" hidden>
+        <button class="btn primary" id="btnGo">게임 시작</button>
+        <p class="waitmsg" id="waitMsg"></p>
+      </div>
     </div>
 
     <div class="tally" id="tally"></div>
