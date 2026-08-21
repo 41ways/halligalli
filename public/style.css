@@ -430,6 +430,7 @@ select{cursor:pointer}
   font-weight:500;letter-spacing:0;font-size:14px;
   color:color-mix(in srgb,var(--muted) 45%,transparent);
 }
+#entry.paused{opacity:.5}
 #entry.good{border-color:var(--hit);background:color-mix(in srgb,var(--hit) 17%,transparent)}
 #entry.bad{border-color:var(--miss);background:color-mix(in srgb,var(--miss) 17%,transparent);animation:shake .28s}
 @keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}

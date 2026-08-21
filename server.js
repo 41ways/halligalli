@@ -395,14 +395,26 @@ function beginTurn(room, fromIdx) {
   pushState(room);
 }
 
+const STALL_MS = 8_000;
+
+/** 아무도 못 알아채고 오래 멈춰 있으면 살짝 찔러주고, 봇이 판을 되살린다 */
 function armNudge(room) {
   clearTimeout(room.timers.nudge);
   room.timers.nudge = setTimeout(() => {
-    if (room.phase === 'playing' && room.frozen && !room.resolving) {
-      ev(room, { kind: 'nudge' });
-      armNudge(room);
+    if (room.phase !== 'playing' || !room.frozen || room.resolving) return;
+    ev(room, { kind: 'nudge' });
+
+    // 다 같이 놓치면 판이 영영 멈춘다.
+    // 봇이 있으면 이번엔 확실히 치게 해서 진행을 살린다(사람이 먼저 칠 여유는 남긴다).
+    const win = ringableWords(room);
+    const bots = room.players.filter(p => p.bot && inPlay(p));
+    if (win.length && bots.length && botsMayCall(room)) {
+      const word = NAMES[pick(win).key][0];
+      const who = pick(bots);
+      room.timers.bots.push(setTimeout(() => doCall(room, who.id, word), rnd(1400, 2800)));
     }
-  }, 15_000);
+    armNudge(room);
+  }, STALL_MS);
 }
 
 function doFlip(room, playerId, auto) {
@@ -468,10 +480,15 @@ function evaluate(room) {
 
 /** 종 치기 = 이름 타자. 판정은 전부 서버가 한다. */
 function doCall(room, playerId, rawWord) {
-  if (room.phase !== 'playing' || room.resolving) return;
   const p = room.players.find(x => x.id === playerId);
-  if (!p || !inPlay(p)) return;
-  if ((room.lock[p.id] || 0) > Date.now()) return;
+  if (!p) return;
+  // 무시할 때도 왜 무시했는지 돌려준다. 아무 반응이 없으면 입력창에 글자가 남아 죽는다.
+  const drop = why => { if (!p.bot) send(p.ws, { t: 'drop', why }); };
+
+  if (room.phase !== 'playing') return drop('notplaying');
+  if (room.resolving) return drop('resolving');
+  if (!inPlay(p)) return drop('out');
+  if ((room.lock[p.id] || 0) > Date.now()) return drop('locked');
 
   const word = norm(rawWord);
   if (!word) return;
@@ -479,7 +496,7 @@ function doCall(room, playerId, rawWord) {
   const extreme = room.cfg.mode === 'extreme';
   const keys = extreme ? ['pair', ...ANIMALS] : FRUITS;
   const label = matchWord(word, keys);
-  if (!label) return;                       // 아무것과도 안 맞으면 친 게 아니다
+  if (!label) return drop('noword');         // 아무것과도 안 맞으면 친 게 아니다
 
   const s = sums(room);
   let correct = false, reason = 'count', count = null;

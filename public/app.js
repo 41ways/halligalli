@@ -118,6 +118,13 @@ function connect(onOpen) {
       onState(m);
     } else if (m.t === 'ev') {
       onEvent(m);
+    } else if (m.t === 'drop') {
+      // 서버가 이번 입력을 무시했다 — 입력창을 비워서 다음 타자가 반드시 먹히게 한다
+      el.entry.value = '';
+      if (m.why === 'locked') el.status.innerHTML = '<b>잠깐 —</b> 방금 오답이라 0.9초 뒤부터 다시 칠 수 있어요';
+      else if (m.why === 'noword') el.status.innerHTML = isExtreme()
+        ? '익스트림에서는 <b>짝 · 코끼리 · 원숭이 · 돼지</b> 만 칩니다'
+        : '<b>그런 말은 없어요</b>';
     } else if (m.t === 'err') {
       toast(m.msg);
       if (m.fatal) { sessionStorage.removeItem('hg'); show('login'); }
@@ -139,9 +146,14 @@ function tryResume() {
 }
 
 /* ───────────── 상태 렌더 ───────────── */
+let wasResolving = false;
 function onState(s) {
   const prev = S;
   S = s;
+  // 정지 구간이 끝나는 순간 입력창을 비운다.
+  // 정지 중에 친 글자가 남아 있으면 값이 바뀌지 않아 다음 판에서 아무리 쳐도 반응이 없다.
+  if (wasResolving && !s.resolving) el.entry.value = '';
+  wasResolving = !!s.resolving;
   clockOffset = s.now - Date.now();
   el.roomCode.textContent = s.code;
   el.barCode.textContent = s.code;
@@ -345,6 +357,7 @@ function renderGame() {
     : myTurnNow ? '내 차례 — 카드를 뒤집으세요'
     : `<b>${turnP ? esc(turnP.name) : '?'}</b> 차례`;
   document.querySelector('.table').classList.toggle('myturn', myTurnNow);
+  el.entry.classList.toggle('paused', !!S.resolving);
 
   if (mine && mine.out) el.entry.placeholder = '탈락했습니다 — 관전 중';
   else el.entry.placeholder = isExtreme()
@@ -551,22 +564,22 @@ function showResult() {
 }
 
 /* ───────────── 입력 ───────────── */
-/* 입력값의 '끝'이 과일 이름과 맞으면 호출 — 카드가 계속 뒤집혀도 타자가 끊기지 않게 */
-function matchFruit(v) {
-  let best = null, len = 0;
-  for (const name in NAME2ID) {
-    if (name.length > len && v.endsWith(name)) { best = NAME2ID[name]; len = name.length; }
-  }
-  return best;
+/* 입력의 '끝'이 무언가와 맞으면 그 말을 서버로 보낸다.
+   판정은 전부 서버가 하고, 카드가 계속 뒤집혀도 타자가 끊기지 않는다. */
+function looksLikeCall(v) {
+  for (const k in SP) for (const nm of SP[k].names) if (v.endsWith(nm)) return true;
+  for (const f of FRUITS) for (const nm of f.names) if (v.endsWith(nm)) return true;
+  return false;
 }
+
 function tryCall(raw) {
   let v = String(raw || '').trim().toLowerCase().replace(/\s+/g, '');
   if (!v) return;
   if (v.length > 24) { v = v.slice(-24); el.entry.value = v; }
-  const id = matchFruit(v);
-  if (!id) return;
+  if (!looksLikeCall(v)) return;
   if (!S || S.phase !== 'playing') { el.entry.value = ''; return; }
-  send({ t: 'call', fruit: id });
+  if (S.resolving) { el.entry.value = ''; return; }   // 판정 정지 구간 — 글자가 남지 않게 비운다
+  send({ t: 'call', word: v });
 }
 
 el.entry.addEventListener('input', e => tryCall(e.target.value));
@@ -717,6 +730,12 @@ function applyTheme(v) {
 el.theme.addEventListener('change', () => applyTheme(el.theme.value));
 el.themeGame.addEventListener('change', () => applyTheme(el.themeGame.value));
 
+
+/* 클라이언트에서 예외가 나면 타자가 통째로 먹통이 된다. 조용히 죽지 않게 알린다. */
+window.addEventListener('error', e => {
+  console.error(e.error || e.message);
+  toast('오류가 났습니다 — 새로고침해 주세요');
+});
 
 /* ───────────── 시작 ───────────── */
 applyTheme(localStorage.getItem('hgTheme') || 'paper');
