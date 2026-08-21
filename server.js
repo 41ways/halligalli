@@ -102,23 +102,70 @@ function shuffle(a) {
 
 
 /* 카드 한 장 = { d: 배치 id, f: [과일...] } · 동물 카드는 { d, sp: 동물 } */
-function makeDeck(mode) {
+function basicFruitDeck() {
   const deck = [];
-  if (mode === 'extreme') {
-    for (const d of exDesigns()) {
-      const key = d.f.join('+');
-      for (let c = 0; c < d.copies; c++) deck.push({ d: key, f: d.f.slice() });
-    }
-    for (const a of ANIMALS) {
-      for (let c = 0; c < ANIMAL_COPIES[a]; c++) deck.push({ d: 'a' + a, sp: a });
-    }
-  } else {
-    for (const f of FRUITS) for (const n of COUNT_DIST) {
-      deck.push({ d: f + ':' + n, f: Array(n).fill(f) });
-    }
+  for (const f of FRUITS) for (const n of COUNT_DIST) {
+    deck.push({ d: f + ':' + n, f: Array(n).fill(f) });
   }
-  return shuffle(deck);
+  return deck;
 }
+function exFruitDeck() {
+  const deck = [];
+  for (const d of exDesigns()) {
+    const key = d.f.join('+');
+    for (let c = 0; c < d.copies; c++) deck.push({ d: key, f: d.f.slice() });
+  }
+  return deck;
+}
+function animalDeck() {
+  const deck = [];
+  for (const a of ANIMALS) {
+    for (let c = 0; c < ANIMAL_COPIES[a]; c++) deck.push({ d: 'a' + a, sp: a });
+  }
+  return deck;
+}
+
+/* ─────────────────────────────────────────────────────────
+   모드는 여기 한 곳에서만 갈린다.
+   덱 · 칠 수 있는 말 · 종 조건 · 판정이 모두 이 표에 들어 있고,
+   바깥 코드는 modeOf(room) 을 통해서만 접근한다.
+   ───────────────────────────────────────────────────────── */
+const MODES = {
+  basic: {
+    ko: '기본',
+    deck: () => basicFruitDeck(),
+    words: () => FRUITS,                       // 칠 수 있는 말 (그 외는 모르는 말)
+    hasAnimals: false,
+    ringable(room) {
+      return fivesOf(sums(room)).map(f => ({ key: f }));
+    },
+    judge(room, label) {
+      const count = sums(room)[label];
+      return { ok: count === 5, reason: 'count', count };
+    },
+  },
+
+  extreme: {
+    ko: '익스트림',
+    deck: () => [...exFruitDeck(), ...animalDeck()],
+    words: () => ['pair', ...ANIMALS],
+    hasAnimals: true,
+    ringable(room) {
+      const x = extremeState(room);
+      const out = [];
+      if (x.ok.pair) out.push({ key: 'pair' });
+      for (const a of ANIMALS) if (x.ok[a]) out.push({ key: a });
+      return out;
+    },
+    judge(room, label) {
+      const x = extremeState(room);
+      if (label === 'pair') return { ok: x.ok.pair, reason: 'pair', count: null };
+      return { ok: !!x.ok[label], reason: x.up.has(label) ? label : 'noanimal', count: null };
+    },
+  },
+};
+const MODE_KEYS = Object.keys(MODES);
+const modeOf = room => MODES[room.cfg.mode] || MODES.basic;
 
 const rooms = new Map();
 
@@ -218,7 +265,7 @@ function topCards(room) {
 
 /** 지금 테이블에 깔려 있는 동물 카드 */
 function animalsUp(room) {
-  if (room.cfg.mode !== 'extreme') return [];
+  if (!modeOf(room).hasAnimals) return [];
   const up = new Set(topCards(room).filter(c => c.sp).map(c => c.sp));
   return ANIMALS.filter(a => up.has(a));
 }
@@ -257,14 +304,7 @@ function extremeState(room) {
 
 /** 지금 칠 수 있는 말들 */
 function ringableWords(room) {
-  if (room.cfg.mode !== 'extreme') {
-    return fivesOf(sums(room)).map(f => ({ key: f, kind: 'five' }));
-  }
-  const x = extremeState(room);
-  const out = [];
-  if (x.ok.pair) out.push({ key: 'pair' });
-  for (const a of ANIMALS) if (x.ok[a]) out.push({ key: a });
-  return out;
+  return modeOf(room).ringable(room);
 }
 
 /* ─────────────────────────── 통신 ─────────────────────────── */
@@ -324,7 +364,7 @@ function startGame(room) {
   const players = room.players;
   if (players.length < 2) return;
 
-  const deck = makeDeck(room.cfg.mode);
+  const deck = shuffle(modeOf(room).deck());
   players.forEach((p, i) => {
     p.hand = []; p.table = []; p.out = false;
     p.hits = 0; p.misses = 0; p.best = null;
@@ -448,7 +488,7 @@ function evaluate(room) {
 
   const cfg = BOT[room.cfg.botDiff];
   const s = sums(room);
-  const ex = room.cfg.mode === 'extreme' ? extremeState(room) : null;
+  const ex = modeOf(room).hasAnimals ? extremeState(room) : null;
 
   for (const p of room.players) {
     if (!p.bot || !inPlay(p)) continue;
@@ -493,22 +533,10 @@ function doCall(room, playerId, rawWord) {
   const word = norm(rawWord);
   if (!word) return;
 
-  const extreme = room.cfg.mode === 'extreme';
-  const keys = extreme ? ['pair', ...ANIMALS] : FRUITS;
-  const label = matchWord(word, keys);
-  if (!label) return drop('noword');         // 아무것과도 안 맞으면 친 게 아니다
-
-  const s = sums(room);
-  let correct = false, reason = 'count', count = null;
-
-  if (!extreme) {
-    count = s[label];
-    correct = count === 5;
-  } else {
-    const x = extremeState(room);
-    if (label === 'pair') { correct = x.ok.pair; reason = 'pair'; }
-    else { correct = x.ok[label]; reason = x.up.has(label) ? label : 'noanimal'; }
-  }
+  const mode = modeOf(room);
+  const label = matchWord(word, mode.words());
+  if (!label) return drop('noword');         // 이 모드에서 쓰지 않는 말
+  const { ok: correct, reason, count } = mode.judge(room, label);
 
   room.resolving = true;
   clearAll(room);
@@ -599,7 +627,7 @@ function handle(ws, msg) {
   switch (msg.t) {
     case 'create': {
       const r = createRoom();
-      if (['basic', 'extreme'].includes(msg.mode)) r.cfg.mode = msg.mode;
+      if (MODE_KEYS.includes(msg.mode)) r.cfg.mode = msg.mode;
       const p = addPlayer(r, { name: clean(msg.name, 12) || '플레이어 1' });
       attach(r, p, ws);
       return;
@@ -671,7 +699,7 @@ function handle(ws, msg) {
       if (!isHost) return;
       if (['easy', 'normal', 'hard'].includes(msg.botDiff)) room.cfg.botDiff = msg.botDiff;
       if ([0, 4000, 6000, 9000].includes(msg.turnLimit)) room.cfg.turnLimit = msg.turnLimit;
-      if (['basic', 'extreme'].includes(msg.mode) && room.phase === 'lobby') room.cfg.mode = msg.mode;
+      if (MODE_KEYS.includes(msg.mode) && room.phase === 'lobby') room.cfg.mode = msg.mode;
       pushState(room);
       break;
     }
@@ -788,6 +816,35 @@ setInterval(() => {
   }
 }, 30_000);
 
+/** 모드 구성이 어긋나면 게임 중이 아니라 시작할 때 바로 터지게 한다 */
+function selfCheck() {
+  for (const key of MODE_KEYS) {
+    const m = MODES[key];
+    const deck = m.deck();
+    const animals = deck.filter(c => c.sp).length;
+
+    if (m.hasAnimals && animals === 0) throw new Error(`${key}: 동물 카드가 없습니다`);
+    if (!m.hasAnimals && animals > 0) throw new Error(`${key}: 동물 카드가 섞였습니다`);
+
+    for (const w of m.words()) {
+      if (!NAMES[w]) throw new Error(`${key}: '${w}' 의 이름 목록이 없습니다`);
+    }
+    for (const c of deck) {
+      if (c.sp) {
+        if (!ANIMALS.includes(c.sp)) throw new Error(`${key}: 모르는 동물 ${c.sp}`);
+        continue;
+      }
+      if (!Array.isArray(c.f) || !c.f.length) throw new Error(`${key}: 과일 없는 카드`);
+      for (const f of c.f) if (!FRUITS.includes(f)) throw new Error(`${key}: 모르는 과일 ${f}`);
+      if (!c.d) throw new Error(`${key}: 배치 id 없는 카드`);
+    }
+    console.log(`  ${m.ko.padEnd(5)} ${String(deck.length).padStart(3)}장` +
+      ` (과일 ${deck.length - animals} · 동물 ${animals})` +
+      ` · 칠 수 있는 말: ${m.words().map(w => NAMES[w][0]).join(' / ')}`);
+  }
+}
+
 server.listen(PORT, () => {
+  selfCheck();
   console.log(`할리갈리 서버 → http://localhost:${PORT}`);
 });

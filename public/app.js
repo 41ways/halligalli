@@ -20,8 +20,24 @@ const SP = {
   pig:      { ko:'돼지',   emoji:'🐷', names:['돼지','pig'],
               short:'무조건',        hint:'돼지가 보이면 조건 없이 «돼지»' },
 };
-const isExtreme = () => S && S.cfg && S.cfg.mode === 'extreme';
-const modeFruits = () => FRUITS;
+/* 모드는 여기 한 곳에서만 갈린다. 칠 수 있는 말·안내문·범례가 전부 이 표에서 나온다. */
+const MODES = {
+  basic: {
+    ko: '기본',
+    words: () => FRUITS,
+    placeholder: '같은 과일 5개를 찾으면 이름을 치세요',
+    wrongMode: '기본 모드에서는 <b>과일 이름</b>만 칩니다',
+  },
+  extreme: {
+    ko: '익스트림',
+    words: () => Object.keys(SP).map(k => SP[k]),
+    placeholder: '짝 · 코끼리 · 원숭이 · 돼지 — 조건이 맞으면 치세요',
+    wrongMode: '익스트림에서는 <b>짝 · 코끼리 · 원숭이 · 돼지</b> 만 칩니다',
+  },
+};
+const modeKey = () => (S && S.cfg && MODES[S.cfg.mode] ? S.cfg.mode : 'basic');
+const curMode = () => MODES[modeKey()];
+const isExtreme = () => modeKey() === 'extreme';
 
 /* 원작 카드처럼 과일이 흩어져 배치되는 좌표 [x%, y%, 회전deg] */
 const PIPS = {
@@ -122,9 +138,7 @@ function connect(onOpen) {
       // 서버가 이번 입력을 무시했다 — 입력창을 비워서 다음 타자가 반드시 먹히게 한다
       el.entry.value = '';
       if (m.why === 'locked') el.status.innerHTML = '<b>잠깐 —</b> 방금 오답이라 0.9초 뒤부터 다시 칠 수 있어요';
-      else if (m.why === 'noword') el.status.innerHTML = isExtreme()
-        ? '익스트림에서는 <b>짝 · 코끼리 · 원숭이 · 돼지</b> 만 칩니다'
-        : '<b>그런 말은 없어요</b>';
+      else if (m.why === 'noword') el.status.innerHTML = curMode().wrongMode;
     } else if (m.t === 'err') {
       toast(m.msg);
       if (m.fatal) { sessionStorage.removeItem('hg'); show('login'); }
@@ -360,9 +374,7 @@ function renderGame() {
   el.entry.classList.toggle('paused', !!S.resolving);
 
   if (mine && mine.out) el.entry.placeholder = '탈락했습니다 — 관전 중';
-  else el.entry.placeholder = isExtreme()
-    ? '짝 · 코끼리 · 원숭이 · 돼지 — 조건이 맞으면 치세요'
-    : '같은 과일 5개를 찾으면 이름을 치세요';
+  else el.entry.placeholder = curMode().placeholder;
 }
 
 function esc(t) {
@@ -566,17 +578,27 @@ function showResult() {
 /* ───────────── 입력 ───────────── */
 /* 입력의 '끝'이 무언가와 맞으면 그 말을 서버로 보낸다.
    판정은 전부 서버가 하고, 카드가 계속 뒤집혀도 타자가 끊기지 않는다. */
-function looksLikeCall(v) {
-  for (const k in SP) for (const nm of SP[k].names) if (v.endsWith(nm)) return true;
-  for (const f of FRUITS) for (const nm of f.names) if (v.endsWith(nm)) return true;
-  return false;
+const endsWithAny = (v, list) => list.some(w => w.names.some(nm => v.endsWith(nm)));
+/** 지금 모드에서 쓰는 말인가 / 다른 모드 말인가 */
+function classify(v) {
+  if (endsWithAny(v, curMode().words())) return 'mine';
+  const other = MODES[modeKey() === 'basic' ? 'extreme' : 'basic'];
+  if (endsWithAny(v, other.words())) return 'other';
+  return null;
 }
 
 function tryCall(raw) {
   let v = String(raw || '').trim().toLowerCase().replace(/\s+/g, '');
   if (!v) return;
   if (v.length > 24) { v = v.slice(-24); el.entry.value = v; }
-  if (!looksLikeCall(v)) return;
+
+  const kind = classify(v);
+  if (!kind) return;
+  if (kind === 'other') {                            // 다른 모드 말 — 보내지 않고 여기서 알려준다
+    el.entry.value = '';
+    el.status.innerHTML = curMode().wrongMode;
+    return;
+  }
   if (!S || S.phase !== 'playing') { el.entry.value = ''; return; }
   if (S.resolving) { el.entry.value = ''; return; }   // 판정 정지 구간 — 글자가 남지 않게 비운다
   send({ t: 'call', word: v });
