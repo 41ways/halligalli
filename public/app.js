@@ -761,7 +761,7 @@ window.addEventListener('error', e => {
 
 /* ───────────── 시작 ───────────── */
 applyTheme(localStorage.getItem('hgTheme') || 'paper');
-document.documentElement.dataset.shape = 'round';   // 시안이 정해지면 여기만 바꾼다
+document.documentElement.dataset.shape = 'soft';    // 모양 시안 2번 (살짝) — /shapes.html 에서 비교
 
 function setLayout(mode) {
   layoutMode = mode;

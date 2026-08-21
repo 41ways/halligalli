@@ -119,6 +119,18 @@ npx cloudflared tunnel --url http://localhost:8788
 
 보드는 화면에서 남는 세로를 전부 가져가고, 카드 크기는 그 높이에 맞춰 자동으로 계산된다.
 
+## 모양
+
+모서리·테두리·그림자는 CSS 변수로 묶여 있고, 기본은 **시안 2번 «살짝»** 이다
+(테이블 12px · 카드 8px · 알약 없음). `public/app.js` 아래쪽
+
+```js
+document.documentElement.dataset.shape = 'soft';
+```
+
+한 줄만 바꾸면 `round · soft · sharp · zero · cut · line · thick` 로 갈아끼운다.
+일곱 가지를 실제 화면으로 비교하려면 `/shapes.html` 을 연다.
+
 ## 테마
 
 우측 상단 선택기로 언제든 바꿀 수 있다. 선택은 브라우저에 저장된다.
