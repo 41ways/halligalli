@@ -63,7 +63,7 @@ const el = {};
  'roomCode','btnCopy','lobbyPlayers','hostBox','optDiff','optLimit',
  'btnAddBot','btnStart','lobbyHint','barCode','btnLeave',
  'entry','btnFlip','flipTimer','status','log','overlay','ovTitle','ovSub','btnAgain',
- 'btnToLobby','toast','verdict','ovRank','theme','themeGame','board','slots','bell','btnSound','bigToggle','btnGo','waitMsg','turnNow','startGate','optMode','modePick','btnHelp','btnHelpClose','help','helpTitle','helpBody'].forEach(k => el[k] = $(k));
+ 'btnToLobby','toast','verdict','ovRank','theme','themeGame','board','slots','bell','btnSound','bigToggle','btnGo','waitMsg','turnNow','startGate','optMode','modePick','btnHelp','btnHelpClose','help','helpTitle','helpBody','optSpace','intro','setup','btnEnter','btnBack','themeIntro','confetti'].forEach(k => el[k] = $(k));
 
 let ws = null, me = null, S = null, clockOffset = 0;
 let flashInfo = null, flashUntil = 0, verdictTimer = null;
@@ -139,6 +139,7 @@ function connect(onOpen) {
       el.entry.value = '';
       if (m.why === 'locked') el.status.innerHTML = '<b>잠깐 —</b> 방금 오답이라 0.9초 뒤부터 다시 칠 수 있어요';
       else if (m.why === 'noword') el.status.innerHTML = curMode().wrongMode;
+      else if (m.why === 'nospace') el.status.innerHTML = '스페이스바로 종 치기는 <b>꺼져 있습니다</b>';
     } else if (m.t === 'err') {
       toast(m.msg);
       if (m.fatal) { sessionStorage.removeItem('hg'); show('login'); }
@@ -197,6 +198,7 @@ function renderLobby() {
 
   el.hostBox.hidden = !isHost();
   el.optMode.value = S.cfg.mode || 'basic';
+  el.optSpace.checked = !!S.cfg.spaceBell;
   el.optDiff.value = S.cfg.botDiff;
   el.optLimit.value = String(S.cfg.turnLimit);
   el.btnStart.disabled = S.players.length < 2;
@@ -374,7 +376,7 @@ function renderGame() {
   el.entry.classList.toggle('paused', !!S.resolving);
 
   if (mine && mine.out) el.entry.placeholder = '탈락했습니다 — 관전 중';
-  else el.entry.placeholder = curMode().placeholder;
+  else el.entry.placeholder = curMode().placeholder + (S.cfg.spaceBell ? '  ·  스페이스바' : '');
 }
 
 function esc(t) {
@@ -479,7 +481,7 @@ function onEvent(m) {
 
   if (m.kind === 'call') {
     const info = F[m.label] || SP[m.label];
-    const what = info ? `${info.emoji} ${info.ko}` : '?';
+    const what = info ? `${info.emoji} ${info.ko}` : (m.bell ? '🔔 종' : '?');
     const name = who(m.by);
     const mine = m.by === me;
 
@@ -489,7 +491,7 @@ function onEvent(m) {
       markSeat(m.by, 'hit', `+${m.gained}`, 1900);
       showVerdict(
         `<div class="vw">${info ? info.emoji : '🔔'} ${mine ? '내가' : name} 종을 쳤다!</div>
-         <div class="vs">${info ? info.ko : ''} · <b>+${m.gained}장</b>${m.rt != null ? ` · ${m.rt}ms` : ''}</div>`,
+         <div class="vs">${info ? info.ko + ' · ' : ''}<b>+${m.gained}장</b>${m.rt != null ? ` · ${m.rt}ms` : ''}</div>`,
         'ok', 1900);
       if (mine) { sfxRight(); flash('good'); } else sfxWrong();
       el.status.innerHTML = mine
@@ -498,7 +500,8 @@ function onEvent(m) {
       log(`${info ? info.emoji : '🔔'} <b>${name}</b> 성공 → +${m.gained}장${m.rt != null ? ` <span style="opacity:.6">(${m.rt}ms)</span>` : ''}`, 'win');
     } else {
       const why =
-        m.reason === 'pair'     ? '똑같은 카드가 두 장이 아닙니다'
+        m.bell && m.reason === 'nobell' ? '지금은 칠 조건이 아닙니다'
+      : m.reason === 'pair'     ? '똑같은 카드가 두 장이 아닙니다'
       : m.reason === 'elephant' ? '딸기가 아직 남아 있습니다'
       : m.reason === 'monkey'   ? '라임이 아직 남아 있습니다'
       : m.reason === 'pig'      ? '돼지가 없습니다'
@@ -610,6 +613,23 @@ el.entry.addEventListener('keydown', e => {
   if (e.key === 'Escape') el.entry.value = '';
 });
 
+/* 스페이스바로 종 치기 — 방장이 켰을 때만 */
+const spaceOn = () => !!(S && S.cfg && S.cfg.spaceBell);
+function ringBySpace() {
+  if (!spaceOn() || !S || S.phase !== 'playing' || S.resolving) return;
+  el.entry.value = '';
+  send({ t: 'bell' });
+}
+document.addEventListener('keydown', e => {
+  if (e.key !== ' ' && e.code !== 'Space') return;
+  if (el.scGame.hidden || !el.help.hidden) return;       // 게임 화면이고 도움말이 닫혀 있을 때만
+  if (!spaceOn()) return;
+  const t = e.target;
+  if (t !== el.entry && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')) return;
+  e.preventDefault();                                     // 입력창에 공백이 쌓이지 않게
+  ringBySpace();
+});
+
 function doFlip() {
   if (!S || S.phase !== 'playing' || S.turn !== me || S.resolving) return;
   if (S.frozen) {                       // 5개가 떠 있는 동안엔 카드를 깔 수 없다
@@ -643,6 +663,31 @@ el.modePick.addEventListener('click', e => {
 });
 paintMode();
 
+function showSetup(on) {
+  el.intro.hidden = on;
+  el.setup.hidden = !on;
+  if (on) setTimeout(() => el.inName.focus(), 30);
+}
+// 시작 화면 배경에 과일이 천천히 흩날린다
+(function sprinkle() {
+  const box = el.confetti;
+  if (!box) return;
+  const F = ['🍌','🍋','🍓','🍇','🔔'];
+  const N = 14;
+  let html = '';
+  for (let i = 0; i < N; i++) {
+    const left = Math.round((i + 0.5) / N * 100);
+    const dur = (7 + (i * 37 % 60) / 10).toFixed(1);     // 7~13s, 결정적
+    const delay = -(i * 53 % 100) / 10;                   // 서로 어긋나게
+    const em = F[i % F.length];
+    html += `<span style="left:${left}%;animation-duration:${dur}s;animation-delay:${delay}s">${em}</span>`;
+  }
+  box.innerHTML = html;
+})();
+
+el.btnEnter.addEventListener('click', () => showSetup(true));
+el.btnBack.addEventListener('click', () => showSetup(false));
+
 el.btnCreate.addEventListener('click', () => {
   localStorage.setItem('hgName', nameOf());
   connect(() => send({ t: 'create', name: nameOf(), mode: createMode }));
@@ -664,6 +709,7 @@ el.btnCopy.addEventListener('click', async () => {
 el.btnAddBot.addEventListener('click', () => send({ t: 'addBot' }));
 el.btnStart.addEventListener('click', () => send({ t: 'start' }));
 el.optMode.addEventListener('change', () => send({ t: 'cfg', mode: el.optMode.value }));
+el.optSpace.addEventListener('change', () => send({ t: 'cfg', spaceBell: el.optSpace.checked }));
 el.optDiff.addEventListener('change', () => send({ t: 'cfg', botDiff: el.optDiff.value }));
 el.optLimit.addEventListener('change', () => send({ t: 'cfg', turnLimit: +el.optLimit.value }));
 el.btnAgain.addEventListener('click', () => send({ t: 'again' }));
@@ -683,6 +729,9 @@ function helpHTML() {
       <h3>공통</h3>
       <ul>
         <li>내 차례에 카드를 <b>클릭</b>해서 한 장 깐다</li>
+        ${S && S.cfg && S.cfg.spaceBell
+          ? '<li><b>스페이스바</b>로도 종을 칠 수 있다 — 이름을 안 쳐도 조건만 맞으면 성공</li>'
+          : '<li>스페이스바로 종 치기는 방장이 대기실에서 켤 수 있다</li>'}
         <li>칠 조건이 생기면 <b>아무도 카드를 못 깐다</b> — 누가 칠 때까지 판이 멈춘다</li>
         <li>맞히면 펼쳐진 카드를 전부 가져가고, 틀리면 다른 사람에게 한 장씩 준다</li>
         <li>손패와 앞면이 모두 떨어지면 탈락. 마지막까지 남으면 승리</li>
@@ -747,10 +796,11 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') el.help.hidd
 function applyTheme(v) {
   document.documentElement.dataset.theme = v;
   localStorage.setItem('hgTheme', v);
-  el.theme.value = v; el.themeGame.value = v;
+  el.theme.value = v; el.themeGame.value = v; el.themeIntro.value = v;
 }
 el.theme.addEventListener('change', () => applyTheme(el.theme.value));
 el.themeGame.addEventListener('change', () => applyTheme(el.themeGame.value));
+el.themeIntro.addEventListener('change', () => applyTheme(el.themeIntro.value));
 
 
 /* 클라이언트에서 예외가 나면 타자가 통째로 먹통이 된다. 조용히 죽지 않게 알린다. */
@@ -777,6 +827,7 @@ setMuted(muted);
 el.inName.value = localStorage.getItem('hgName') || '';
 const hash = location.hash.replace('#', '').toUpperCase();
 if (/^[A-Z0-9]{4}$/.test(hash)) {
+  showSetup(true);
   el.inCode.value = hash;
   el.loginHint.innerHTML = `방 <b>${hash}</b> 에 참가합니다 — 닉네임을 정하고 <b>참가</b>를 누르세요.`;
 }

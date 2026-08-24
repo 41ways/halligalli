@@ -10,7 +10,33 @@
 
 <!-- ───────────── 접속 화면 ───────────── -->
 <section class="screen" id="scLogin">
-  <div class="panel">
+  <div class="intro" id="intro">
+    <div class="confetti" id="confetti" aria-hidden="true"></div>
+    <div class="introcard">
+      <div class="fan" aria-hidden="true">
+        <span class="fc fc1"><i>🍌</i></span>
+        <span class="fc fc2"><i>🍓</i><i>🍓</i></span>
+        <span class="fc fc3"><i>🔔</i></span>
+        <span class="fc fc4"><i>🍇</i><i>🍇</i></span>
+        <span class="fc fc5"><i>🍋</i></span>
+      </div>
+      <h1 class="introtitle">할리갈리</h1>
+      <p class="introtag">종 대신 — 같은 과일 <b>5개</b>가 뜨는 순간<br>과일 이름을 <b>먼저 타자로 치는</b> 사람이 이깁니다</p>
+      <button class="btn primary big" id="btnEnter">게임 시작</button>
+      <div class="introfoot">
+        <span class="chipmini">🍌 바나나</span><span class="chipmini">🍋 라임</span>
+        <span class="chipmini">🍓 딸기</span><span class="chipmini">🍇 포도</span>
+      </div>
+      <div class="themerow"><span>테마</span><select id="themeIntro">
+        <option value="felt">딥 그린 펠트</option><option value="neon">네온 아케이드</option>
+        <option value="paper">크래프트 페이퍼</option><option value="midnight">미드나잇 미니멀</option>
+        <option value="candy">캔디 팝</option></select></div>
+      <div class="credit">정한결</div>
+    </div>
+  </div>
+
+  <div class="panel" id="setup" hidden>
+    <button class="btn tiny back" id="btnBack">← 뒤로</button>
     <h1 class="logo">🔔 할리갈리</h1>
     <p class="tag">종 대신 — 과일 이름을 <b>먼저 타자로 치는</b> 사람이 이깁니다</p>
 
@@ -71,6 +97,10 @@
             <option value="normal" selected>보통</option>
             <option value="hard">어려움</option>
           </select>
+        </label>
+        <label class="opt check">
+          <input type="checkbox" id="optSpace">
+          <span>스페이스바로 종 <small>(이름 안 쳐도 됨)</small></span>
         </label>
         <label class="opt">
           <span>자동 넘김</span>

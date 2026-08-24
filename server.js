@@ -197,7 +197,7 @@ function createRoom() {
     fiveSince: 0,
     winner: null,
     lock: {},
-    cfg: { botDiff: 'normal', turnLimit: 6000, mode: 'basic' },
+    cfg: { botDiff: 'normal', turnLimit: 6000, mode: 'basic', spaceBell: false },
     timers: { turn: null, resume: null, nudge: null, bots: [] },
     lastActive: Date.now(),
   };
@@ -519,25 +519,57 @@ function evaluate(room) {
 }
 
 /** 종 치기 = 이름 타자. 판정은 전부 서버가 한다. */
-function doCall(room, playerId, rawWord) {
-  const p = room.players.find(x => x.id === playerId);
-  if (!p) return;
-  // 무시할 때도 왜 무시했는지 돌려준다. 아무 반응이 없으면 입력창에 글자가 남아 죽는다.
-  const drop = why => { if (!p.bot) send(p.ws, { t: 'drop', why }); };
-
+/** 종을 칠 수 있는 상태인지 — 아니면 이유를 돌려주고 false.
+    무시할 때도 이유를 알려준다. 아무 반응이 없으면 입력창에 글자가 남아 죽는다. */
+function canRing(room, p) {
+  const drop = why => { if (!p.bot) send(p.ws, { t: 'drop', why }); return false; };
   if (room.phase !== 'playing') return drop('notplaying');
   if (room.resolving) return drop('resolving');
   if (!inPlay(p)) return drop('out');
   if ((room.lock[p.id] || 0) > Date.now()) return drop('locked');
+  return true;
+}
+
+/** 이름을 타자로 쳐서 종 치기 */
+function doCall(room, playerId, rawWord) {
+  const p = room.players.find(x => x.id === playerId);
+  if (!p || !canRing(room, p)) return;
 
   const word = norm(rawWord);
   if (!word) return;
 
   const mode = modeOf(room);
   const label = matchWord(word, mode.words());
-  if (!label) return drop('noword');         // 이 모드에서 쓰지 않는 말
-  const { ok: correct, reason, count } = mode.judge(room, label);
+  if (!label) {                              // 이 모드에서 쓰지 않는 말
+    if (!p.bot) send(p.ws, { t: 'drop', why: 'noword' });
+    return;
+  }
+  const { ok, reason, count } = mode.judge(room, label);
+  settle(room, p, { correct: ok, label, reason, count });
+}
 
+/** 스페이스바로 종 치기 — 이름 없이 '지금 칠 조건인가' 만 본다 */
+function doBell(room, playerId) {
+  const p = room.players.find(x => x.id === playerId);
+  if (!p) return;
+  if (!room.cfg.spaceBell) {
+    if (!p.bot) send(p.ws, { t: 'drop', why: 'nospace' });
+    return;
+  }
+  if (!canRing(room, p)) return;
+
+  const win = ringableWords(room);
+  settle(room, p, {
+    correct: win.length > 0,
+    label: win.length ? win[0].key : null,
+    reason: 'nobell',
+    count: null,
+    bell: true,
+  });
+}
+
+/** 성공/오답 정산 — 타자든 스페이스바든 여기로 모인다 */
+function settle(room, p, { correct, label, reason, count, bell }) {
   room.resolving = true;
   clearAll(room);
   room.lastActive = Date.now();
@@ -550,7 +582,7 @@ function doCall(room, playerId, rawWord) {
     p.hand.push(...shuffle(pot));
     p.hits++;
     if (rt != null && (p.best == null || rt < p.best)) p.best = rt;
-    payload = { kind: 'call', ok: true, by: p.id, label, gained: pot.length, rt };
+    payload = { kind: 'call', ok: true, by: p.id, label, gained: pot.length, rt, bell: !!bell };
     room.turn = p.id;                      // 다음 뒤집기는 이긴 사람부터
   } else {
     const targets = room.players.filter(q => q !== p && inPlay(q));
@@ -561,7 +593,7 @@ function doCall(room, playerId, rawWord) {
     }
     p.misses++;
     room.lock[p.id] = Date.now() + WRONG_LOCK;
-    payload = { kind: 'call', ok: false, by: p.id, label, count, given, reason };
+    payload = { kind: 'call', ok: false, by: p.id, label, count, given, reason, bell: !!bell };
   }
 
   ev(room, payload);
@@ -700,6 +732,7 @@ function handle(ws, msg) {
       if (['easy', 'normal', 'hard'].includes(msg.botDiff)) room.cfg.botDiff = msg.botDiff;
       if ([0, 4000, 6000, 9000].includes(msg.turnLimit)) room.cfg.turnLimit = msg.turnLimit;
       if (MODE_KEYS.includes(msg.mode) && room.phase === 'lobby') room.cfg.mode = msg.mode;
+      if (typeof msg.spaceBell === 'boolean') room.cfg.spaceBell = msg.spaceBell;
       pushState(room);
       break;
     }
@@ -721,6 +754,10 @@ function handle(ws, msg) {
 
     case 'call':
       doCall(room, me.id, msg.word);
+      break;
+
+    case 'bell':
+      doBell(room, me.id);
       break;
 
     case 'again':
