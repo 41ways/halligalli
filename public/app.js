@@ -354,7 +354,7 @@ function renderGame() {
   const mine = myP();
   const myTurn = S.turn === me && !S.resolving && S.phase === 'playing';
   el.btnFlip.classList.toggle('on', myTurn && !S.frozen);
-  el.btnFlip.disabled = S.turn !== me || S.phase !== 'playing';
+  el.btnFlip.disabled = S.turn !== me || S.phase !== 'playing' || S.frozen || S.resolving;
 
   const ready = S.phase === 'ready';
   el.startGate.hidden = !ready;
