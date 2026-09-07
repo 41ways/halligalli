@@ -17,6 +17,7 @@
   --raise:rgba(255,255,255,.07); --raise2:rgba(255,255,255,.13);
   --panelbg:rgba(255,255,255,.045); --sink:rgba(0,0,0,.22); --field:rgba(0,0,0,.32);
   --surface:rgba(10,20,17,.95); --scrim:rgba(6,13,11,.86);
+  --display:"Jua","Apple SD Gothic Neo",sans-serif;   /* 통통한 표제 — 과일 치기의 소란스러움 */
 }
 *{box-sizing:border-box}
 [hidden]{display:none !important}
@@ -112,7 +113,8 @@ select{cursor:pointer}
 @keyframes swing{0%,100%{transform:rotate(-9deg)}50%{transform:rotate(9deg)}}
 
 .introtitle{
-  font-size:52px;font-weight:900;letter-spacing:-.045em;margin:0 0 12px;line-height:1;
+  font-family:var(--display);
+  font-size:56px;font-weight:400;letter-spacing:-.02em;margin:0 0 12px;line-height:1;
 }
 .introtag{color:var(--muted);font-size:14px;line-height:1.7;margin:0 0 26px;max-width:360px}
 .introtag b{color:var(--text)}
@@ -122,7 +124,8 @@ select{cursor:pointer}
 }
 .introfoot{display:flex;gap:7px;flex-wrap:wrap;justify-content:center;margin-top:18px}
 .chipmini{
-  font-size:12.5px;font-weight:700;color:var(--muted);
+  font-family:var(--display);
+  font-size:13.5px;font-weight:400;color:var(--muted);
   background:var(--raise);border:var(--bd) solid var(--line);
   border-radius:var(--r-pill);padding:5px 12px;
 }
