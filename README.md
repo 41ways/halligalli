@@ -1,6 +1,21 @@
-# 할리갈리 — 타자 대전
+# 🔔 할리갈리
+
+![종류](https://img.shields.io/badge/%EC%A2%85%EB%A5%98-%EB%B3%B4%EB%93%9C%EA%B2%8C%EC%9E%84-d9822b?style=flat-square) ![인원](https://img.shields.io/badge/%EC%9D%B8%EC%9B%90-2~6%EC%9D%B8-555?style=flat-square) [![플레이](https://img.shields.io/badge/%ED%94%8C%EB%A0%88%EC%9D%B4-halligalli--f9rk.onrender.com-d8332b?style=flat-square)](https://halligalli-f9rk.onrender.com/) [![허브](https://img.shields.io/badge/%ED%97%88%EB%B8%8C-41ways%EC%9D%98%20%EB%A0%88%EB%93%9C%EB%B2%84%ED%8A%BC-b4571f?style=flat-square)](https://41ways.github.io/norara/)
 
 종을 치는 대신 **과일 이름을 먼저 타자로 치는** 사람이 판을 가져가는 온라인 할리갈리.
+
+## 한눈에
+
+| | |
+|---|---|
+| **종류** | 보드게임 · 온라인 · 실시간 |
+| **인원** | 2~6인 (봇으로 채우면 혼자도) |
+| **플레이** | **https://halligalli-f9rk.onrender.com/** |
+| **로컬 실행** | `npm install && npm start` → http://localhost:8788 |
+| **한 줄 규칙** | 같은 과일이 5개 뜨는 순간, 과일 이름을 먼저 타자로 치는 사람이 판을 가져간다 |
+| **허브** | https://41ways.github.io/norara/ |
+
+**목차** — [시작 화면](#시작-화면) · [실행](#실행) · [친구와 하기](#친구와-하기) · [배포 (Render)](#배포-render) · [규칙](#규칙) · [차례 표시](#차례-표시) · [판정 표시](#판정-표시) · [봇](#봇) · [모드](#모드) · [배치](#배치) · [모양](#모양) · [테마](#테마) · [방 옵션 (방장)](#방-옵션-방장) · [알아두면 좋은 동작](#알아두면-좋은-동작) · [모드 관리](#모드-관리) · [구조](#구조)
 
 ## 시작 화면
 
@@ -39,7 +54,7 @@ npx cloudflared tunnel --url http://localhost:8788
 2. [dashboard.render.com](https://dashboard.render.com) → **New → Blueprint**
 3. `41ways/halligalli` 저장소 선택 → **Apply**
 
-빌드가 끝나면 `https://halligalli-xxxx.onrender.com` 주소가 나온다. 그 주소를 친구에게 주면 끝.
+빌드가 끝나면 `https://halligalli-f9rk.onrender.com` 주소가 나온다 (이미 이 주소로 떠 있다). 그 주소를 친구에게 주면 끝.
 이후에는 `main`에 push할 때마다 자동으로 다시 배포된다.
 
 무료 플랜은 **15분 동안 아무도 안 들어오면 잠들고**, 그 뒤 첫 접속이 40~60초 걸린다.
