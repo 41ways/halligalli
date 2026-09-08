@@ -789,7 +789,7 @@ const server = http.createServer((req, res) => {
 
   if (file === '/healthz') {
     res.writeHead(200, { 'content-type': 'application/json' });
-    return res.end(JSON.stringify({ ok: true, rooms: rooms.size }));
+    return res.end(JSON.stringify({ ok: true, rooms: rooms.size, rev: (process.env.RENDER_GIT_COMMIT || '').slice(0, 7) || null }));
   }
 
   if (file === '/') file = '/index.html';
