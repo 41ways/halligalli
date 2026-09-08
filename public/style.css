@@ -790,3 +790,40 @@ html[data-theme="candy"]{
 
 /* 저작권 고지 — 타이틀 아래, 자세히 봐야 보일 만큼만 */
 .legal{margin:26px auto 0;max-width:36em;font-size:10.5px;line-height:1.75;color:var(--muted);opacity:.7;text-align:center;word-break:keep-all}
+
+/* ─────────────── 판을 실제로 그린다 ───────────────
+   지금까지 판은 배경색 그대로라, 카드 몇 장이 허공에 떠 있는 것처럼 보였다.
+   상판을 깔고 가운데에 종 받침을 놓아 "여기가 판이고 저기를 노린다"가 보이게 한다.
+   색은 전부 테마 변수에서 가져오므로 다섯 테마 어디서든 어울린다. */
+.board{
+  border-radius:26px;
+  background:
+    radial-gradient(58% 64% at 50% 46%, color-mix(in srgb,var(--felt) 62%,transparent), transparent 74%),
+    linear-gradient(162deg, color-mix(in srgb,var(--felt) 30%,transparent), transparent 62%);
+  box-shadow:
+    inset 0 0 0 1px var(--line),
+    inset 0 20px 54px -36px var(--sink);
+}
+
+/* 종 — 흐린 이모지 한 글자였다. 받침을 깔아 판의 중심으로 세운다 */
+.bell{
+  opacity:1; filter:none;
+  width:clamp(80px,11vh,118px); height:clamp(80px,11vh,118px);
+  display:grid; place-items:center; border-radius:50%;
+  font-size:clamp(30px,4.6vh,48px); line-height:1;
+  background:
+    radial-gradient(62% 62% at 50% 32%, color-mix(in srgb,var(--gold) 20%,transparent), transparent 72%),
+    color-mix(in srgb,var(--felt) 55%,transparent);
+  box-shadow:
+    inset 0 0 0 2px color-mix(in srgb,var(--gold) 42%,transparent),
+    inset 0 0 0 10px color-mix(in srgb,var(--line) 55%,transparent),
+    0 12px 26px -16px var(--sink);
+}
+/* 울릴 때는 받침까지 같이 밝아진다 */
+.bell.ring{
+  box-shadow:
+    inset 0 0 0 2px var(--gold),
+    inset 0 0 0 10px color-mix(in srgb,var(--gold) 30%,transparent),
+    0 0 34px -4px color-mix(in srgb,var(--gold) 55%,transparent);
+}
+@media (prefers-reduced-motion: reduce){ .bell.ring{ animation:none } }
