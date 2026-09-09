@@ -1,11 +1,37 @@
 /**
  * 기본 / 익스트림이 서로 꼬이지 않는지 확인한다.
- *   node test/modes.js            (서버가 8788 에 떠 있어야 한다)
- *   PORT=8790 node test/modes.js  (다른 포트로)
+ *   node test/modes.js
+ *
+ * 서버는 이 테스트가 직접 띄웠다가 끝나면 내린다 (서비스 포트 8788 옆의 8789).
+ * 이미 떠 있는 서버에 붙이고 싶으면 PORT 를 주면 된다:
+ *   PORT=8788 node test/modes.js
  */
+const { spawn } = require('child_process');
 const WebSocket = require('../node_modules/ws');
-const PORT = process.env.PORT || 8788;
+const OWN_PORT = 8789;                       // 테스트가 직접 띄울 때 쓰는 포트
+const USE_EXISTING = !!process.env.PORT;     // PORT 를 주면 이미 떠 있는 서버에 붙는다
+const PORT = process.env.PORT || OWN_PORT;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+let srv = null;
+/** 서버를 띄우고 준비될 때까지 기다린다 */
+async function startServer() {
+  if (USE_EXISTING) return;
+  srv = spawn(process.execPath, [require.resolve('../server.js')], {
+    env: Object.assign({}, process.env, { PORT: String(PORT) }),
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  srv.stderr.on('data', d => process.stderr.write(d));
+  await new Promise((resolve, reject) => {
+    var done = false;
+    srv.stdout.on('data', d => {
+      if (!done && String(d).includes('할리갈리 서버')) { done = true; resolve(); }
+    });
+    srv.on('exit', c => { if (!done) reject(new Error('서버가 뜨지 못했습니다 (종료 ' + c + ')')); });
+    setTimeout(() => { if (!done) reject(new Error('서버가 뜨는 데 너무 오래 걸립니다')); }, 10000);
+  });
+}
+function stopServer() { if (srv) { srv.kill(); srv = null; } }
 
 const FRUITS = ['banana', 'lime', 'strawberry', 'grape'];
 const KO = { banana:'바나나', lime:'라임', strawberry:'딸기', grape:'포도' };
@@ -150,9 +176,21 @@ async function flipGuard() {
 }
 
 (async () => {
-  await run('basic');
-  await run('extreme');
-  await flipGuard();
+  try {
+    await startServer();
+    await run('basic');
+    await run('extreme');
+    await flipGuard();
+  } catch (e) {
+    fail++;
+    console.log('  ❌', e.message);
+  } finally {
+    stopServer();
+  }
   console.log(`\n통과 ${pass} · 실패 ${fail}`);
   process.exit(fail ? 1 : 0);
 })();
+
+// 도중에 끊겨도 서버를 남기지 않는다
+process.on('exit', stopServer);
+process.on('SIGINT', () => { stopServer(); process.exit(130); });
