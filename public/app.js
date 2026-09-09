@@ -491,11 +491,12 @@ function onEvent(m) {
     if (m.ok) {
       dealing = {};
       setTimeout(() => animCollect(m.by), 0);
-      markSeat(m.by, 'hit', `+${m.gained}`, 1900);
-      showVerdict(
+      const okHtml =
         `<div class="vw">${info ? info.emoji : '🔔'} ${mine ? '내가' : name} 종을 쳤다!</div>
-         <div class="vs">${info ? info.ko + ' · ' : ''}<b>+${m.gained}장</b>${m.rt != null ? ` · ${m.rt}ms` : ''}</div>`,
-        'ok', 1900);
+         <div class="vs">${info ? info.ko + ' · ' : ''}<b>+${m.gained}장</b>${m.rt != null ? ` · ${m.rt}ms` : ''}</div>`;
+      const okMs = readMs(okHtml, 1900);
+      markSeat(m.by, 'hit', `+${m.gained}`, okMs);   // 판정과 같이 사라지게
+      showVerdict(okHtml, 'ok', okMs);
       if (mine) { sfxRight(); flash('good'); } else sfxWrong();
       el.status.innerHTML = mine
         ? `<span class="ok">성공!</span> ${what} — <b>${m.gained}장</b> 획득${m.rt != null ? ` · ${m.rt}ms` : ''}`
@@ -512,11 +513,13 @@ function onEvent(m) {
       : info ? `${josa(info.ko, '은', '는')} ${m.count}개였습니다`
       : '그런 건 없습니다';
 
-      markSeat(m.by, 'miss', `−${m.given}`, 1700);
-      showVerdict(
+      const noHtml =
         `<div class="vw">✕ ${mine ? '내' : name} 오답</div>
-         <div class="vs">${why} · <b>−${m.given}장</b></div>`,
-        'no', 1700);
+         <div class="vs">${why} · <b>−${m.given}장</b></div>`;
+      // 왜 틀렸는지가 규칙을 배우는 대목이다. 성공보다 조금 더 오래 둔다.
+      const noMs = readMs(noHtml, 2100);
+      markSeat(m.by, 'miss', `−${m.given}`, noMs);
+      showVerdict(noHtml, 'no', noMs);
       if (mine) { sfxWrong(); flash('bad'); }
       el.status.innerHTML = mine
         ? `<span class="no">틀렸어요!</span> ${why} — 카드 ${m.given}장 지급`
@@ -533,6 +536,13 @@ function onEvent(m) {
   if (m.kind === 'out') log(`<b>${who(m.by)}</b> 카드 소진 — 탈락`);
   if (m.kind === 'end') { el.verdict.hidden = true; clearTimeout(verdictTimer); }
   if (m.kind === 'end') log(m.by === me ? '🏆 승리!' : `게임 종료 — <b>${who(m.by)}</b> 승리`);
+}
+
+/** 읽는 데 걸리는 시간 — 한글 짧은 문구는 0.8초 + 글자당 0.07초쯤.
+    판정을 상수로 띄우면 이유가 길 때 다 읽기 전에 사라진다. */
+function readMs(html, floor) {
+  const n = String(html || '').replace(/<[^>]*>/g, '').replace(/\s/g, '').length;
+  return Math.max(floor, 800 + n * 70);
 }
 
 /** 누가 맞혔고 누가 잘못 쳤는지 화면 한가운데에 크게 알린다 */
