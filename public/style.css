@@ -827,3 +827,6 @@ html[data-theme="candy"]{
     0 0 34px -4px color-mix(in srgb,var(--gold) 55%,transparent);
 }
 @media (prefers-reduced-motion: reduce){ .bell.ring{ animation:none } }
+
+/* 두 사람이 할 때 — 자리가 위아래로만 놓이므로 판을 좁혀 좌우 빈 자리를 없앤다 */
+.board.few{max-width:470px}
