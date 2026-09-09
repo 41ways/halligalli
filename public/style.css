@@ -888,4 +888,7 @@ body.chatting .actionrow::after{
   border:2px dashed var(--miss);
   color:var(--text);font-size:13px;font-weight:800;
 }
-@media (max-width:560px){.chat{height:min(340px,54vh)}}
+/* 좁은 화면에서 아래에 두면 입력칸과 "채팅 중" 경고까지 가려 버린다. 위로 올린다. */
+@media (max-width:560px){
+  .chat{top:56px;bottom:auto;height:min(46vh,330px);left:12px;right:12px;width:auto}
+}
