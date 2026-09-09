@@ -93,7 +93,11 @@ async function run(mode) {
 
     if (c.st.turn === c.me && !c.st.frozen) c.send({ t:'flip' });
     await sleep(90);
-    if (wordTested && otherWordTested && (mode === 'basic' ? true : sawAnimal)) break;
+    // 익스트림은 동물 카드와 "과일 여러 종류" 카드를 둘 다 본 뒤에 끝내야 한다.
+    // sawAnimal 만 보고 빠져나가면 sawMulti 가 아직 false 인 채로 검사에 들어가
+    // 뽑기 순서에 따라 간헐적으로 실패했다. (30초 상한은 그대로라 무한히 돌지 않는다)
+    const seenAll = mode === 'basic' ? true : (sawAnimal && sawMulti);
+    if (wordTested && otherWordTested && seenAll) break;
   }
 
   if (mode === 'extreme') {
