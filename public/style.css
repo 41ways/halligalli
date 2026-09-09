@@ -797,12 +797,17 @@ html[data-theme="candy"]{
    색은 전부 테마 변수에서 가져오므로 다섯 테마 어디서든 어울린다. */
 .board{
   border-radius:26px;
+  /* 페이지 배경과 같은 톤이라 판의 경계가 보이지 않았다.
+     상판을 제 색으로 깔고 테두리와 그림자를 세워서 "여기가 판"이 눈에 들어오게 한다. */
   background:
-    radial-gradient(58% 64% at 50% 46%, color-mix(in srgb,var(--felt) 62%,transparent), transparent 74%),
-    linear-gradient(162deg, color-mix(in srgb,var(--felt) 30%,transparent), transparent 62%);
+    /* 테마 색을 그대로 쓰되 한 겹 눌러서, 어느 테마에서든 페이지보다 확실히 어둡게 */
+    linear-gradient(180deg, rgba(0,0,0,.055), rgba(0,0,0,.10)),
+    radial-gradient(62% 66% at 50% 42%, var(--felt), var(--felt2) 72%, var(--felt2));
+  border:1px solid var(--line2);
   box-shadow:
-    inset 0 0 0 1px var(--line),
-    inset 0 20px 54px -36px var(--sink);
+    inset 0 1px 0 var(--raise2),
+    inset 0 24px 60px -40px var(--sink),
+    0 10px 30px -18px var(--sink);
 }
 
 /* 종 — 흐린 이모지 한 글자였다. 받침을 깔아 판의 중심으로 세운다 */
