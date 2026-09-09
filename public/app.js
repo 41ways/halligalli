@@ -150,9 +150,13 @@ function connect(onOpen) {
     } else if (m.t === 'drop') {
       // 서버가 이번 입력을 무시했다 — 입력창을 비워서 다음 타자가 반드시 먹히게 한다
       el.entry.value = '';
+      // 이유를 말해 주지 않으면, 친 글자만 사라져서 "내 타자가 씹혔나?" 로 남는다.
       if (m.why === 'locked') el.status.innerHTML = '<b>잠깐 —</b> 방금 오답이라 0.9초 뒤부터 다시 칠 수 있어요';
       else if (m.why === 'noword') el.status.innerHTML = curMode().wrongMode;
       else if (m.why === 'nospace') el.status.innerHTML = '스페이스바로 종 치기는 <b>꺼져 있습니다</b>';
+      else if (m.why === 'resolving') el.status.innerHTML = '<b>한 발 늦었어요</b> — 이번 판은 이미 끝났습니다';
+      else if (m.why === 'out') el.status.innerHTML = '탈락해서 더는 칠 수 없어요 — 관전 중';
+      else if (m.why === 'notplaying') el.status.innerHTML = '아직 판이 시작되지 않았어요';
     } else if (m.t === 'err') {
       toast(m.msg);
       if (m.fatal) { sessionStorage.removeItem('hg'); show('login'); }
