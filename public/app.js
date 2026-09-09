@@ -100,7 +100,18 @@ function show(which) {
   el.scLogin.hidden = which !== 'login';
   el.scLobby.hidden = which !== 'lobby';
   el.scGame.hidden  = which !== 'game';
-  if (which === 'game') setTimeout(() => el.entry.focus(), 30);
+  // 방을 벗어나면 채팅도 접는다
+  if (which !== 'game' && which !== 'lobby') {
+    const c = document.getElementById('chat');
+    if (c) c.hidden = true;
+    document.body.classList.remove('chatting');
+  }
+  // 채팅을 치고 있는데 커서를 빼앗으면, 치던 글자가 그대로 과일 이름 판정으로 들어간다.
+  // (대기실에서 채팅 중에 방장이 시작을 누르는 경우)
+  if (which === 'game') setTimeout(() => {
+    if (document.body.classList.contains('chatting')) return;
+    el.entry.focus();
+  }, 30);
 }
 
 let toastTimer = null;
