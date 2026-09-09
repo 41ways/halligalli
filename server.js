@@ -756,6 +756,17 @@ function handle(ws, msg) {
       doCall(room, me.id, msg.word);
       break;
 
+    // 같은 방 사람끼리 하는 잡담. 판정에는 아무 영향이 없고 서버는 저장하지 않는다.
+    case 'chat': {
+      const text = clean(msg.text, 200);
+      if (!text) return;
+      const now = Date.now();
+      if (now - (me.lastChat || 0) < 400) return;      // 도배 막기
+      me.lastChat = now;
+      broadcast(room, { t: 'chat', from: me.id, name: me.name, text });
+      break;
+    }
+
     case 'bell':
       doBell(room, me.id);
       break;

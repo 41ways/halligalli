@@ -132,6 +132,8 @@ function connect(onOpen) {
       location.hash = m.code;
     } else if (m.t === 'state') {
       onState(m);
+    } else if (m.t === 'chat') {
+      addChat(m.name, m.text, m.from === me);
     } else if (m.t === 'ev') {
       onEvent(m);
     } else if (m.t === 'drop') {
@@ -165,6 +167,7 @@ let wasResolving = false;
 function onState(s) {
   const prev = S;
   S = s;
+  syncChatVisible();          // 대기실에서도 채팅이 되어야 한다
   // 정지 구간이 끝나는 순간 입력창을 비운다.
   // 정지 중에 친 글자가 남아 있으면 값이 바뀌지 않아 다음 판에서 아무리 쳐도 반응이 없다.
   if (wasResolving && !s.resolving) el.entry.value = '';
@@ -847,3 +850,65 @@ if (/^[A-Z0-9]{4}$/.test(hash)) {
 }
 if (sessionStorage.getItem('hg')) tryResume();
 show('login');
+
+
+/* ─────────────── 채팅 ───────────────
+   같은 방 사람끼리만 오간다. 판정과는 무관하고 어디에도 저장되지 않는다.
+   이 게임은 타자가 곧 종이라, 채팅에 커서가 가 있으면 그 판은 못 친다.
+   그래서 채팅을 여는 동안 입력칸을 눈에 띄게 꺼 두고, 보내면 바로 게임으로 돌려보낸다. */
+
+let chatUnread = 0;
+const chatEsc = t => String(t).replace(/[&<>"']/g, c =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+function chatOpen(on) {
+  const box = $('chat');
+  box.hidden = !on;
+  document.body.classList.toggle('chatting', on);   // 게임 입력칸을 꺼진 상태로 보이게
+  if (on) {
+    chatUnread = 0; $('chatN').hidden = true;
+    $('chatText').focus();
+    const log = $('chatLog'); log.scrollTop = log.scrollHeight;
+  } else if (el.entry && !el.entry.disabled) {
+    el.entry.focus();                                // 바로 다시 칠 수 있게 돌려보낸다
+  }
+}
+
+function addChat(name, text, mine) {
+  const log = $('chatLog');
+  const d = document.createElement('p');
+  d.className = 'chat-msg' + (mine ? ' mine' : '');
+  d.innerHTML = `<b>${chatEsc(name)}</b> ${chatEsc(text)}`;
+  log.appendChild(d);
+  while (log.children.length > 60) log.removeChild(log.firstChild);
+  log.scrollTop = log.scrollHeight;
+  if ($('chat').hidden && !mine) {
+    chatUnread++;
+    const n = $('chatN');
+    n.textContent = chatUnread > 9 ? '9+' : chatUnread;
+    n.hidden = false;
+  }
+}
+
+/** 사람이 나 말고 또 있을 때만 채팅을 내놓는다 */
+function syncChatVisible() {
+  const humans = S && S.players ? S.players.filter(p => !p.bot).length : 0;
+  const on = humans > 1;
+  $('chatBtn').hidden = !on;
+  if (!on) { $('chat').hidden = true; document.body.classList.remove('chatting'); }
+  else $('chatWho').textContent = `${humans}명`;
+}
+
+$('chatBtn').onclick = () => chatOpen($('chat').hidden);
+$('chatX').onclick = () => chatOpen(false);
+$('chatForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const box = $('chatText');
+  const text = box.value.trim();
+  box.value = '';
+  if (text) send({ t: 'chat', text });
+  chatOpen(false);              // 보내면 곧바로 게임으로 — 한 판을 통째로 놓치지 않게
+});
+$('chatText').addEventListener('keydown', e => {
+  if (e.key === 'Escape') { e.preventDefault(); chatOpen(false); }
+});
