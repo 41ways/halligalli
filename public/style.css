@@ -834,8 +834,10 @@ html[data-theme="candy"]{
 @media (prefers-reduced-motion: reduce){ .bell.ring{ animation:none } }
 
 /* 두 사람이 할 때 — 자리가 위아래로만 놓이므로 판을 좁혀 좌우 빈 자리를 없앤다 */
-.board.few{max-width:470px}
-.board.mid{max-width:720px}
+/* 크게보기(.rows)는 폭으로 카드 크기를 정한다 — 거기서 판을 좁히면 카드가 되레 작아진다.
+   폭을 조이는 것은 자리를 둥글게 놓는 기본 배치에서만 한다. */
+.board.few:not(.rows){max-width:470px}
+.board.mid:not(.rows){max-width:720px}
 
 /* ══════════ 채팅 ══════════
    같은 방 사람끼리 하는 잡담. 판을 가리지 않도록 구석에 접어 둔다.
