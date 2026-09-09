@@ -296,9 +296,10 @@ function seatAngles(n, myIdx) {
 function renderGame() {
   const n = S.players.length;
   const myIdx = Math.max(0, S.players.findIndex(p => p.id === me));
-  // 둘이 하면 두 자리가 위아래로만 놓여서 판의 좌우가 통째로 빈다.
-  // 그럴 때는 판 자체를 좁혀 빈 자리를 없앤다.
+  // 자리는 종을 중심으로 둥글게 놓인다. 사람이 적으면 그만큼 판의 바깥이 빈다.
+  // 인원에 맞춰 판의 폭을 조여서 빈 자리가 남지 않게 한다.
   el.board.classList.toggle('few', n <= 2);
+  el.board.classList.toggle('mid', n === 3);
   const big = layoutMode === 'D';
   el.board.classList.toggle('rows', big);
 

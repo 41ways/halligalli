@@ -830,3 +830,4 @@ html[data-theme="candy"]{
 
 /* 두 사람이 할 때 — 자리가 위아래로만 놓이므로 판을 좁혀 좌우 빈 자리를 없앤다 */
 .board.few{max-width:470px}
+.board.mid{max-width:720px}

@@ -202,5 +202,7 @@
 <div class="toast" id="toast" hidden></div>
 
 <script src="app.js"></script>
+<!-- 화면 갈무리용 — ?qa=shot 으로 들어올 때만 불러온다 -->
+<script>if(new URLSearchParams(location.search).get('qa')==='shot'){var s=document.createElement('script');s.src='qa/scene.js';document.body.appendChild(s);}</script>
 </body>
 </html>
