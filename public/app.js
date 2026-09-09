@@ -662,6 +662,8 @@ el.slots.addEventListener('click', e => {
   if (slot && +slot.dataset.id === me) doFlip();
 });
 document.addEventListener('click', e => {
+  // 채팅 안을 눌렀을 때까지 게임 입력으로 끌어오면, 타자 치던 커서를 빼앗긴다
+  if (e.target.closest('#chat,#chatBtn')) return;
   if (!el.scGame.hidden && !e.target.closest('button,select,input')) el.entry.focus();
 });
 
