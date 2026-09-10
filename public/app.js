@@ -50,10 +50,20 @@ const PIPS = {
 };
 
 /** 받침이 있으면 앞쪽, 없으면 뒤쪽 조사를 붙인다 — "라임은 / 딸기는" */
+/** 이름 뒤에 붙일 조사를 고른다.
+    이름은 사람이 직접 치는 값이라 "민수1", "Alex" 처럼 한글로 끝나지 않는 경우가 흔하다.
+    한글만 보고 나머지를 전부 "받침 없음" 으로 넘기면 "민수1가 먼저 쳤습니다" 가 된다. */
 function hasBatchim(w) {
-  const c = String(w).charCodeAt(String(w).length - 1);
-  if (!(c >= 0xAC00 && c <= 0xD7A3)) return false;
-  return (c - 0xAC00) % 28 !== 0;
+  const t = String(w == null ? '' : w).trim();
+  if (!t) return false;
+  const ch = t[t.length - 1];
+  const c = ch.charCodeAt(0);
+  if (c >= 0xAC00 && c <= 0xD7A3) return (c - 0xAC00) % 28 !== 0;
+  // 숫자는 읽는 소리로 — 0영 1일 3삼 6육 7칠 8팔 은 받침이 있다
+  if (c >= 0x30 && c <= 0x39) return '013678'.includes(ch);
+  // 로마자도 읽는 소리로 — Sherlock 은 「이」, Holmes 는 「가」
+  if (/[a-z]/i.test(ch)) return !/[aeiouysxz]/i.test(ch);
+  return false;
 }
 const josa = (w, withB, withoutB) => w + (hasBatchim(w) ? withB : withoutB);
 
