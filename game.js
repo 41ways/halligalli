@@ -697,7 +697,8 @@ function handle(ws, msg) {
       if (!p) return send(ws, { t: 'err', msg: '자리를 찾을 수 없어요.', fatal: true });
       // 먼저 붙어 있던 소켓(복제한 탭 등)은 4001 로 닫는다. 그 탭은 스스로 다시 붙지 않으므로
       // 두 탭이 서로를 밀어내며 끝없이 다시 붙는 일이 없다.
-      if (p.ws && p.ws !== ws) { try { p.ws.close(4001, 'moved'); } catch (_) {} }
+      // 닫는 코드(4001)는 중간 프록시(예: Render)가 떨궈 버리기도 해서, 알림 메시지를 먼저 보낸다.
+      if (p.ws && p.ws !== ws) { send(p.ws, { t: 'moved' }); try { p.ws.close(4001, 'moved'); } catch (_) {} }
       attach(r, p, ws);
       return;
     }

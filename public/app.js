@@ -175,6 +175,12 @@ function connect(onOpen) {
   ws.onmessage = e => {
     if (sock !== ws) return;
     let m; try { m = JSON.parse(e.data); } catch (_) { return; }
+    if (m.t === 'moved' || m.t === 'idle') {             // 곧 닫힌다 — 닫힘 코드가 중간에 떨어져도 알 수 있게
+      sock.onclose({ code: m.t === 'moved' ? 4001 : 4000 });   // 닫힘이 늦게 오거나 안 와도 여기서 멈춘다
+      ws = null;
+      try { sock.close(); } catch (_) {}
+      return;
+    }
     if (m.t === 'welcome') {
       wokeUp = false;
       if (m.code !== chatRoom) { chatRoom = m.code; chatReset(); }   // 다른 방이면 채팅을 비운다
