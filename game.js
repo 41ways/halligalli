@@ -193,7 +193,7 @@ function createRoom() {
     winner: null,
     lock: {},
     cfg: { botDiff: 'normal', turnLimit: 6000, mode: 'basic', spaceBell: false },
-    timers: { turn: null, resume: null, nudge: null, bots: [] },
+    timers: { turn: null, resume: null, nudge: null, bots: [], host: null },
     lastActive: Date.now(),
   };
   rooms.set(room.code, room);
@@ -219,11 +219,17 @@ function addPlayer(room, { name, bot }) {
 function removePlayer(room, id) {
   const i = room.players.findIndex(p => p.id === id);
   if (i < 0) return;
+  const hadTop = room.phase === 'playing' && room.players[i].table.length > 0;
   const [gone] = room.players.splice(i, 1);
   clearTimeout(gone.leaveT);
   if (room.hostId === gone.id) {
     const next = room.players.find(p => !p.bot && p.connected) || room.players.find(p => !p.bot);
     room.hostId = next ? next.id : null;
+  }
+  if (room.phase === 'ready') {
+    // 카드는 깔렸는데 아직 시작 전 — 나간 사람 몫의 카드가 사라지므로 다시 나누거나, 둘이 안 되면 대기실로
+    if (room.players.length >= 2) startGame(room); else toLobby(room);
+    return;
   }
   if (room.phase === 'playing') {
     sweepOut(room);
@@ -231,6 +237,8 @@ function removePlayer(room, id) {
     // (얼린 채로 아무도 못 치고 못 뒤집는 판이 된다), 혼자 남았으면 판이 끝나야 한다.
     if (checkEnd(room)) return;
     if (room.resolving) return;             // 판정 중이면 재개 타이머가 다시 계산한다
+    // 차례도 아니고 앞면 카드도 없던 사람이면 판에 달라진 게 없다 — 지금 사람의 시계를 건드리지 않는다
+    if (room.turn !== gone.id && !hadTop) { pushState(room); return; }
     evaluate(room);
     const cur = room.players.findIndex(x => x.id === room.turn);
     beginTurn(room, cur >= 0 ? cur : i);
@@ -653,6 +661,9 @@ function attach(room, p, ws) {
   clearTimeout(p.leaveT);
   const wasGone = !p.connected;
   p.ws = ws; p.connected = true;
+  // 방장이 자리를 비운 채면(모두 끊겼다 이 사람이 먼저 돌아온 경우 등) 돌아온 사람이 방장을 맡는다
+  const host = room.players.find(x => x.id === room.hostId);
+  if (!host || (!host.connected && host !== p)) room.hostId = p.id;
   // 내 차례에 끊겨서 1.5초 뒤 대신 뒤집어 주려던 예약이 걸려 있으면, 원래 제한시간으로 되돌린다.
   // (그대로 두면 새로고침만 해도 '자동 넘김 없음' 방에서 카드가 저절로 뒤집힌다.)
   if (wasGone && room.phase === 'playing' && room.turn === p.id && !room.resolving && !room.frozen) {
@@ -666,7 +677,25 @@ function attach(room, p, ws) {
   pushState(room);
 }
 
+/** 이 소켓이 이미 어느 자리에 앉아 있으면 거기서 떼어 낸다. create/join/resume 을 연달아 받으면
+ *  앞 자리가 소켓을 쥔 채 "접속 중" 으로 영영 남아서, 그 방이 치워지지 않고 차례가 멈췄다. */
+function detach(ws) {
+  const room = rooms.get(ws.roomCode);
+  if (room) {
+    const p = room.players.find(x => x.id === ws.playerId);
+    if (p && p.ws === ws) {
+      if (room.phase === 'lobby') {
+        removePlayer(room, p.id);
+        if (!room.players.some(x => !x.bot)) { clearAll(room); rooms.delete(room.code); }   // 빈 방은 곧바로 치운다
+        else pushState(room);
+      } else disconnect(ws);
+    }
+  }
+  ws.roomCode = null; ws.playerId = null;
+}
+
 function handle(ws, msg) {
+  if ((msg.t === 'create' || msg.t === 'join' || msg.t === 'resume') && ws.roomCode) detach(ws);
   const room = rooms.get(ws.roomCode);
 
   switch (msg.t) {
@@ -795,12 +824,7 @@ function handle(ws, msg) {
     // 끝난 판을 접고 대기실로. 대기실이어야 새 사람이 코드로 들어올 수 있다.
     case 'lobby': {
       if (!isHost || room.phase !== 'over') return;
-      clearAll(room);
-      room.phase = 'lobby';
-      room.turn = null; room.turnEndsAt = 0; room.winner = null;
-      room.resolving = false; room.frozen = false; room.fiveSince = 0; room.lock = {};
-      for (const p of room.players) { p.hand = []; p.table = []; p.out = false; }
-      pushState(room);
+      toLobby(room);
       break;
     }
 
@@ -810,6 +834,16 @@ function handle(ws, msg) {
       pushState(room);
       break;
   }
+}
+
+/** 대기실에서 끊긴 자리를 잠깐 뒤에 비운다 — 그 사이 돌아오면(attach) 취소된다 */
+function armLeave(room, p) {
+  clearTimeout(p.leaveT);
+  p.leaveT = setTimeout(() => {
+    if (p.connected || room.phase !== 'lobby' || rooms.get(room.code) !== room) return;
+    removePlayer(room, p.id);
+    pushState(room);
+  }, LOBBY_GRACE);
 }
 
 /** 소켓이 닫혔다. 그 사이 같은 자리가 새 소켓으로 다시 붙었으면(새로고침) 건드리지 않는다.
@@ -823,11 +857,16 @@ function disconnect(ws, { keepSeat = false } = {}) {
   p.connected = false; p.ws = null;
   room.lastActive = Date.now();              // 빈 방 청소는 마지막 사람이 떠난 때부터 센다
 
-  // 방장이 끊기면 붙어 있는 사람에게 넘긴다 — 판 중이든 끝난 뒤든.
-  // 안 그러면 '시작'·'다시 하기'·'대기실로'를 누를 사람이 없어 방이 멈춘다.
+  // 방장이 끊기면 잠깐 기다렸다가 붙어 있는 사람에게 넘긴다 — 판 중이든 끝난 뒤든.
+  // 곧바로 넘기면 새로고침 한 번에 방장을 영영 잃고, 안 넘기면 '시작'·'다시 하기'를 누를 사람이 없다.
   if (room.hostId === p.id) {
-    const next = room.players.find(x => !x.bot && x.connected);
-    if (next) room.hostId = next.id;
+    clearTimeout(room.timers.host);
+    room.timers.host = setTimeout(() => {
+      const h = room.players.find(x => x.id === room.hostId);
+      if (h && h.connected) return;
+      const next = room.players.find(x => !x.bot && x.connected);
+      if (next) { room.hostId = next.id; pushState(room); }
+    }, LOBBY_GRACE);
   }
 
   if (room.phase === 'lobby') {
@@ -835,18 +874,23 @@ function disconnect(ws, { keepSeat = false } = {}) {
     // 돌아왔을 때 "자리를 찾을 수 없어요" 로 쫓겨난다. 잠깐 기다렸다가 그래도 없으면 뺀다.
     // 서버가 스스로 끊은 경우(keepSeat)는 사람이 나간 게 아니므로 자리를 그대로 둔다.
     clearTimeout(p.leaveT);
-    if (!keepSeat) {
-      p.leaveT = setTimeout(() => {
-        if (p.connected || room.phase !== 'lobby' || rooms.get(room.code) !== room) return;
-        removePlayer(room, p.id);
-        pushState(room);
-      }, LOBBY_GRACE);
-    }
+    if (!keepSeat) armLeave(room, p);
   } else if (room.turn === p.id) {
     // 접속이 끊긴 사람의 차례면 곧바로 자동으로 넘긴다
     clearTimeout(room.timers.turn);
     room.timers.turn = setTimeout(() => doFlip(room, p.id, true), DC_FLIP_DELAY);
   }
+  pushState(room);
+}
+
+/** 판을 접고 대기실로. 판 중에 떠난 사람은 떠나기 예약이 없어 다음 판에 유령 자리로 남으므로 여기서 건다. */
+function toLobby(room) {
+  clearAll(room);
+  room.phase = 'lobby';
+  room.turn = null; room.turnEndsAt = 0; room.winner = null;
+  room.resolving = false; room.frozen = false; room.fiveSince = 0; room.lock = {};
+  for (const p of room.players) { p.hand = []; p.table = []; p.out = false; }
+  for (const p of room.players) if (!p.bot && !p.connected) armLeave(room, p);
   pushState(room);
 }
 
