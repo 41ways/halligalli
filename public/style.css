@@ -852,6 +852,29 @@ html[data-theme="candy"]{
   position:absolute;top:-3px;right:-3px;min-width:18px;height:18px;border-radius:999px;padding:0 5px;
   font-size:11px;font-weight:800;line-height:18px;background:var(--miss);color:var(--onmiss);
 }
+.chat-n.pop{animation:chatPop .5s cubic-bezier(.3,1.7,.5,1)}
+@keyframes chatPop{from{transform:scale(.3)}}
+/* 접힌 채팅에 새 말이 오면 버튼 옆에 잠깐 띄우는 말풍선. 누르면 채팅이 열린다. */
+.chat-peek{
+  position:fixed;right:74px;bottom:21px;z-index:45;
+  max-width:min(260px,calc(100vw - 96px));
+  padding:8px 12px;border-radius:13px 13px 4px 13px;
+  background:var(--surface);color:var(--text);border:var(--bd) solid var(--line2);
+  box-shadow:0 12px 28px -12px #000;
+  font-size:13px;line-height:1.45;cursor:pointer;word-break:break-word;
+  display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;
+  animation:chatPeekIn .2s ease-out;transition:opacity .25s,transform .25s;
+}
+.chat-peek b{color:var(--muted);font-weight:700;margin-right:6px}
+.chat-peek.bye{opacity:0;transform:translateX(6px)}
+@keyframes chatPeekIn{from{opacity:0;transform:translateX(8px)}}
+/* 폰에서는 아래에 두면 손패·입력칸 위를 덮는다. 채팅창이 열리는 위쪽 자리에 띄운다. */
+@media (max-width:560px){
+  .chat-peek{top:56px;bottom:auto;left:12px;right:12px;max-width:none;border-radius:13px;animation-name:chatPeekDown}
+  .chat-peek.bye{transform:translateY(-6px)}
+}
+@keyframes chatPeekDown{from{opacity:0;transform:translateY(-8px)}}
+@media (prefers-reduced-motion: reduce){.chat-peek,.chat-n.pop{animation:none;transition:none}}
 .chat{
   position:fixed;right:16px;bottom:16px;z-index:46;
   width:min(330px,calc(100vw - 32px));height:min(400px,62vh);

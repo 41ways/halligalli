@@ -688,7 +688,7 @@ el.slots.addEventListener('click', e => {
 });
 document.addEventListener('click', e => {
   // 채팅 안을 눌렀을 때까지 게임 입력으로 끌어오면, 타자 치던 커서를 빼앗긴다
-  if (e.target.closest('#chat,#chatBtn')) return;
+  if (e.target.closest('#chat,#chatBtn,#chatPeek')) return;
   if (!el.scGame.hidden && !e.target.closest('button,select,input')) el.entry.focus();
 });
 
@@ -893,7 +893,7 @@ function chatOpen(on) {
   box.hidden = !on;
   document.body.classList.toggle('chatting', on);   // 게임 입력칸을 꺼진 상태로 보이게
   if (on) {
-    chatUnread = 0; $('chatN').hidden = true;
+    chatUnread = 0; chatBadge(); chatPeekOff();
     $('chatText').focus();
     const log = $('chatLog'); log.scrollTop = log.scrollHeight;
   } else if (el.entry && !el.entry.disabled) {
@@ -909,24 +909,64 @@ function addChat(name, text, mine) {
   log.appendChild(d);
   while (log.children.length > 60) log.removeChild(log.firstChild);
   log.scrollTop = log.scrollHeight;
-  if ($('chat').hidden && !mine) {
-    chatUnread++;
-    const n = $('chatN');
-    n.textContent = chatUnread > 9 ? '9+' : chatUnread;
-    n.hidden = false;
-  }
+  if (mine) return;
+  if ($('chat').hidden) { chatUnread++; chatBadge(); chatPeek(name, text); }
+  if (document.hidden || !document.hasFocus()) { chatAway++; chatTitle(); }
 }
+
+/* 접어 둔 동안 온 말은 세 군데로 알린다 — 버튼의 빨간 숫자(늘 때마다 통 튄다),
+   버튼 옆 말풍선(읽을 만큼 떠 있다 사라진다), 다른 탭·창에 가 있으면 탭 제목 앞의 (n).
+   말풍선은 포커스를 건드리지 않는다. 치고 있던 과일 이름이 끊기면 안 된다. */
+let chatAway = 0, chatPeekT = 0;
+const chatTitle0 = document.title;
+
+function chatBadge() {
+  const n = $('chatN');
+  n.textContent = chatUnread > 99 ? '99+' : chatUnread;
+  n.hidden = !chatUnread;
+  $('chatBtn').setAttribute('aria-label', chatUnread ? `채팅 열기 — 안 읽은 말 ${chatUnread}개` : '채팅 열기');
+  if (!chatUnread) return;
+  n.classList.remove('pop'); void n.offsetWidth; n.classList.add('pop');
+}
+
+function chatPeek(name, text) {
+  const p = $('chatPeek');
+  p.innerHTML = `<b>${chatEsc(name)}</b>${chatEsc(text)}`;
+  p.classList.remove('bye'); p.hidden = false;
+  p.style.animation = 'none'; void p.offsetWidth; p.style.animation = '';
+  clearTimeout(chatPeekT);
+  chatPeekT = setTimeout(() => {
+    p.classList.add('bye');
+    chatPeekT = setTimeout(chatPeekOff, 260);
+  }, Math.min(6000, Math.max(3000, 1200 + 70 * text.length)));
+}
+
+function chatPeekOff() {
+  clearTimeout(chatPeekT);
+  const p = $('chatPeek'); p.hidden = true; p.classList.remove('bye');
+}
+
+function chatTitle() {
+  document.title = (chatAway ? `(${chatAway > 99 ? '99+' : chatAway}) ` : '') + chatTitle0;
+}
+
+function chatBack() {
+  if (chatAway && !document.hidden && document.hasFocus()) { chatAway = 0; chatTitle(); }
+}
+document.addEventListener('visibilitychange', chatBack);
+window.addEventListener('focus', chatBack);
 
 /** 사람이 나 말고 또 있을 때만 채팅을 내놓는다 */
 function syncChatVisible() {
   const humans = S && S.players ? S.players.filter(p => !p.bot).length : 0;
   const on = humans > 1;
   $('chatBtn').hidden = !on;
-  if (!on) { $('chat').hidden = true; document.body.classList.remove('chatting'); }
+  if (!on) { $('chat').hidden = true; document.body.classList.remove('chatting'); chatPeekOff(); }
   else $('chatWho').textContent = `${humans}명`;
 }
 
 $('chatBtn').onclick = () => chatOpen($('chat').hidden);
+$('chatPeek').onclick = () => chatOpen(true);
 $('chatX').onclick = () => chatOpen(false);
 $('chatForm').addEventListener('submit', e => {
   e.preventDefault();
