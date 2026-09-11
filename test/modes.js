@@ -43,7 +43,7 @@ const bad = (t, m='') => { fail++; console.log('  ❌', t, m); };
 const check = (cond, t, m='') => cond ? ok(t, m) : bad(t, m);
 
 function client(name, mode) {
-  const ws = new WebSocket(`ws://localhost:${PORT}`);
+  const ws = new WebSocket(`ws://localhost:${PORT}/ws`);
   const c = { ws, me:null, st:null, evs:[], drops:[] };
   ws.on('message', d => { const m = JSON.parse(d);
     if (m.t === 'welcome') c.me = m.you;

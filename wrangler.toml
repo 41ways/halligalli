@@ -1,0 +1,21 @@
+# 할리갈리 — Cloudflare Workers 무료 플랜
+# 화면 파일은 정적 자산으로, 소켓(/ws)만 Worker → Durable Object 로 간다.
+# 무료 플랜에서는 SQLite 저장소 방식의 Durable Object 만 쓸 수 있다(new_sqlite_classes). 저장소는 쓰지 않는다.
+# 결제 수단이 없으므로 한도를 넘어도 요금이 붙지 않고, 그날 남은 요청만 거절된다.
+name = "halligalli"
+main = "worker.js"
+compatibility_date = "2026-08-01"
+workers_dev = true
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = ["/ws", "/healthz"]
+
+[[durable_objects.bindings]]
+name = "GAME"
+class_name = "HalliGame"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["HalliGame"]

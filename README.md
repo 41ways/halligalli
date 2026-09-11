@@ -1,6 +1,6 @@
 # 🔔 할리갈리
 
-![종류](https://img.shields.io/badge/%EC%A2%85%EB%A5%98-%EB%B3%B4%EB%93%9C%EA%B2%8C%EC%9E%84-d9822b?style=flat-square) ![인원](https://img.shields.io/badge/%EC%9D%B8%EC%9B%90-2~6%EC%9D%B8-555?style=flat-square) [![플레이](https://img.shields.io/badge/%ED%94%8C%EB%A0%88%EC%9D%B4-halligalli--f9rk.onrender.com-d8332b?style=flat-square)](https://halligalli-f9rk.onrender.com/) [![허브](https://img.shields.io/badge/%ED%97%88%EB%B8%8C-41ways%EC%9D%98%20%EB%A0%88%EB%93%9C%EB%B2%84%ED%8A%BC-b4571f?style=flat-square)](https://41ways.github.io/norara/)
+![종류](https://img.shields.io/badge/%EC%A2%85%EB%A5%98-%EB%B3%B4%EB%93%9C%EA%B2%8C%EC%9E%84-d9822b?style=flat-square) ![인원](https://img.shields.io/badge/%EC%9D%B8%EC%9B%90-2~6%EC%9D%B8-555?style=flat-square) [![플레이](https://img.shields.io/badge/%ED%94%8C%EB%A0%88%EC%9D%B4-halligalli.41ways.workers.dev-d8332b?style=flat-square)](https://halligalli.41ways.workers.dev/) [![허브](https://img.shields.io/badge/%ED%97%88%EB%B8%8C-41ways%EC%9D%98%20%EB%A0%88%EB%93%9C%EB%B2%84%ED%8A%BC-b4571f?style=flat-square)](https://41ways.github.io/norara/)
 
 종을 치는 대신 **과일 이름을 먼저 타자로 치는** 사람이 판을 가져가는 온라인 할리갈리.
 
@@ -10,7 +10,7 @@
 |---|---|
 | **종류** | 보드게임 · 온라인 · 실시간 |
 | **인원** | 2~6인 (봇으로 채우면 혼자도) |
-| **플레이** | **https://halligalli-f9rk.onrender.com/** |
+| **플레이** | **https://halligalli.41ways.workers.dev/** |
 | **로컬 실행** | `npm install && npm start` → http://localhost:8788 |
 | **한 줄 규칙** | 같은 과일이 5개 뜨는 순간, 과일 이름을 먼저 타자로 치는 사람이 판을 가져간다 |
 | **허브** | https://41ways.github.io/norara/ |
@@ -46,19 +46,21 @@ npx cloudflared tunnel --url http://localhost:8788
 출력되는 `https://....trycloudflare.com` 주소를 공유하면 된다.
 터미널을 끄면 주소도 사라진다. (WebSocket을 그대로 통과시키므로 게임이 정상 동작한다.)
 
-## 배포 (Render)
+## 배포 (Cloudflare Workers 무료 플랜)
 
-이 저장소에는 `render.yaml`이 들어 있어서 Render가 설정을 알아서 읽는다.
+`wrangler.toml` 에 설정이 다 들어 있다. 화면 파일(`public/`)은 정적 자산으로, 소켓(`/ws`)만 Durable Object 하나로 간다.
 
-1. GitHub에 push
-2. [dashboard.render.com](https://dashboard.render.com) → **New → Blueprint**
-3. `41ways/halligalli-fanproj` 저장소 선택 → **Apply**
+```bash
+npx wrangler login     # 처음 한 번
+npx wrangler deploy
+```
 
-빌드가 끝나면 `https://halligalli-f9rk.onrender.com` 주소가 나온다 (이미 이 주소로 떠 있다). 그 주소를 친구에게 주면 끝.
-이후에는 `main`에 push할 때마다 자동으로 다시 배포된다.
+주소는 **https://halligalli.41ways.workers.dev/** 다. 그 주소를 친구에게 주면 끝.
 
-무료 플랜은 **15분 동안 아무도 안 들어오면 잠들고**, 그 뒤 첫 접속이 40~60초 걸린다.
-같이 하기로 한 시간 조금 전에 미리 한 번 열어두면 깨어 있는 상태로 시작할 수 있다.
+- **잠들지 않는다.** 렌더 무료 플랜처럼 첫 접속에 40~60초를 기다릴 일이 없다.
+- 무료 한도는 하루 단위(요청 10만 · 켜진 시간 13,000 GB-s)라 넘어도 다음 날이면 다시 찬다. 결제 수단이 없으니 요금은 붙지 않는다.
+- 켜진 시간을 아끼려고 **20분 동안 아무 조작이 없는 연결은 서버가 닫는다.** 화면을 다시 누르면 이어 붙는다.
+- 예전 Render 배포(`render.yaml`)도 그대로 동작한다. 같은 `game.js` 를 Node 서버(`server.js`)로 띄울 뿐이다.
 
 ## 규칙
 
@@ -210,10 +212,14 @@ npm test
 ## 구조
 
 ```
-server.js        게임 서버 — 덱·판정·차례·타이머·봇을 모두 서버가 관리
+game.js          덱·판정·차례·타이머·봇을 모두 서버가 관리. 통신 방식은 모른다
+worker.js        Cloudflare Workers 서버 — 소켓을 Durable Object 하나로 받아 game.js 에 넘긴다 (실제 서비스)
+server.js        Node 서버 — 같은 game.js 를 ws 로 띄운다 (로컬 개발 · 테스트)
 public/index.html
 public/style.css
 public/app.js    화면 렌더 + 입력
+test/modes.js    모드별로 판을 돌리는 테스트 (PORT 를 주면 떠 있는 서버에 붙는다)
+test/smoke.js    떠 있는 서버 확인 — node test/smoke.js https://halligalli.41ways.workers.dev
 ```
 
 서버가 권위를 가지므로 클라이언트를 조작해도 판정을 속일 수 없다.
