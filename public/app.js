@@ -120,6 +120,9 @@ function show(which) {
   // (대기실에서 채팅 중에 방장이 시작을 누르는 경우)
   if (which === 'game') setTimeout(() => {
     if (document.body.classList.contains('chatting')) return;
+    // 판 위의 다른 조작(테마 목록 등)을 쓰는 중이면 두고, 그 밖일 때만 입력칸으로
+    const a = document.activeElement;
+    if (a && a !== el.entry && /^(SELECT|INPUT|TEXTAREA)$/.test(a.tagName)) return;
     el.entry.focus();
   }, 30);
 }
@@ -141,13 +144,40 @@ function log(html, cls) {
 }
 
 /* ───────────── 연결 ───────────── */
+/* 서버(Cloudflare 무료 플랜)는 켜져 있는 시간이 한도라서,
+   20분 동안 아무 조작이 없으면 서버가 연결을 닫는다(4000). 그때는 스스로 다시 붙지 않고
+   화면을 다시 만질 때 이어 붙는다. 켜 두기만 한 탭이 서버를 붙잡아 두지 않게. */
+let pingT = null, resting = false, wokeUp = false;
+
+function wake(e) {
+  if (!resting) return;
+  if (e.type === 'visibilitychange' && document.hidden) return;   // 탭을 떠날 때는 아님
+  resting = false;
+  el.toast.hidden = true;
+  if (sessionStorage.getItem('hg')) { wokeUp = true; tryResume(); }
+}
+['pointerdown', 'keydown'].forEach(t => addEventListener(t, wake, true));
+document.addEventListener('visibilitychange', wake);
+
 function connect(onOpen) {
+  if (ws && ws.readyState === 1) { onOpen && onOpen(); return; }   // 이미 붙어 있으면 그대로 쓴다
+  // 붙는 중이던 옛 소켓은 손을 떼고 닫는다. 그대로 두면 나중에 그게 닫힐 때
+  // 지금 소켓의 ping 을 끄고 다시 붙기를 부르는 바람에, 서로를 밀어내며 끝없이 다시 붙는다.
+  if (ws) { ws.onopen = ws.onmessage = ws.onclose = null; try { ws.close(); } catch (_) {} }
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-  ws = new WebSocket(`${proto}://${location.host}`);
-  ws.onopen = () => onOpen && onOpen();
+  const sock = ws = new WebSocket(`${proto}://${location.host}/ws`);
+  ws.onopen = () => {
+    if (sock !== ws) return;
+    clearInterval(pingT);
+    pingT = setInterval(() => send({ t: 'ping' }), 25_000);   // 서버가 끊긴 탭을 가려낼 수 있게
+    onOpen && onOpen();
+  };
   ws.onmessage = e => {
+    if (sock !== ws) return;
     let m; try { m = JSON.parse(e.data); } catch (_) { return; }
     if (m.t === 'welcome') {
+      wokeUp = false;
+      if (m.code !== chatRoom) { chatRoom = m.code; chatReset(); }   // 다른 방이면 채팅을 비운다
       me = m.you;
       sessionStorage.setItem('hg', JSON.stringify({ code: m.code, token: m.token }));
       location.hash = m.code;
@@ -168,11 +198,26 @@ function connect(onOpen) {
       else if (m.why === 'out') el.status.innerHTML = '탈락해서 더는 칠 수 없어요 — 관전 중';
       else if (m.why === 'notplaying') el.status.innerHTML = '아직 판이 시작되지 않았어요';
     } else if (m.t === 'err') {
-      toast(m.msg);
+      // 오래 쉬다 돌아왔는데 그사이 방이 정리된 경우 — 무엇 때문인지 알려 준다
+      toast(m.fatal && wokeUp ? '오래 비워 둔 사이 방이 정리됐어요. 새로 만들어 주세요.' : m.msg);
       if (m.fatal) { sessionStorage.removeItem('hg'); show('login'); }
+      wokeUp = false;
     }
   };
-  ws.onclose = () => {
+  ws.onclose = e => {
+    if (sock !== ws) return;
+    clearInterval(pingT);
+    // 4000: 오래 조작이 없어 서버가 닫음 · 4001: 다른 탭이 이 자리를 이어받음(탭 복제 등)
+    // 둘 다 스스로 다시 붙지 않는다 — 붙으면 서로를 밀어내며 끝없이 오간다. 누를 때 다시 붙는다.
+    if (e.code === 4000 || e.code === 4001) {
+      resting = true;
+      el.toast.textContent = e.code === 4000
+        ? '한동안 조작이 없어서 연결을 쉬고 있어요. 아무 곳이나 누르면 다시 붙어요.'
+        : '다른 창에서 이 자리를 이어받았어요. 여기서 계속하려면 아무 곳이나 누르세요.';
+      el.toast.hidden = false;
+      clearTimeout(toastTimer);                // 누를 때까지 떠 있게
+      return;
+    }
     if (!el.scLogin.hidden) return;
     toast('연결이 끊겼어요. 다시 접속하는 중…');
     setTimeout(tryResume, 1200);
@@ -646,12 +691,21 @@ function tryCall(raw) {
   }
   if (!S || S.phase !== 'playing') { el.entry.value = ''; return; }
   if (S.resolving) { el.entry.value = ''; return; }   // 판정 정지 구간 — 글자가 남지 않게 비운다
+  lastCall = { v, at: Date.now() };
   send({ t: 'call', word: v });
 }
+let lastCall = { v: '', at: 0 };
 
 el.entry.addEventListener('input', e => tryCall(e.target.value));
 el.entry.addEventListener('keydown', e => {
-  if (e.key === 'Enter') { e.preventDefault(); tryCall(el.entry.value); el.entry.value = ''; }
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    // 말이 완성되는 순간 input 이 이미 보냈다. 버릇처럼 누른 Enter 가 같은 말을 또 보내면
+    // 서버가 "이미 끝났다" 로 답해서, 이긴 사람 화면의 '성공'이 '한 발 늦었어요'로 덮였다.
+    const v = String(el.entry.value || '').trim().toLowerCase().replace(/\s+/g, '');
+    if (!(v === lastCall.v && Date.now() - lastCall.at < 1500)) tryCall(el.entry.value);
+    el.entry.value = '';
+  }
   if (e.key === 'Escape') el.entry.value = '';
 });
 
@@ -689,7 +743,11 @@ el.slots.addEventListener('click', e => {
 document.addEventListener('click', e => {
   // 채팅 안을 눌렀을 때까지 게임 입력으로 끌어오면, 타자 치던 커서를 빼앗긴다
   if (e.target.closest('#chat,#chatBtn,#chatPeek')) return;
-  if (!el.scGame.hidden && !e.target.closest('button,select,input')) el.entry.focus();
+  if (el.scGame.hidden) return;
+  // 채팅을 연 채로 판을 눌렀으면 게임으로 돌아가려는 것이다. 채팅은 그대로 둔 채 커서만
+  // 입력칸으로 옮기면, 채팅으로 치려던 "딸기 몇개?" 가 판정으로 들어가 오답이 된다.
+  if (document.body.classList.contains('chatting')) { chatOpen(false); return; }
+  if (!e.target.closest('button,select,input')) el.entry.focus();
 });
 
 /* ───────────── 접속/대기실 조작 ───────────── */
@@ -757,7 +815,11 @@ el.optSpace.addEventListener('change', () => send({ t: 'cfg', spaceBell: el.optS
 el.optDiff.addEventListener('change', () => send({ t: 'cfg', botDiff: el.optDiff.value }));
 el.optLimit.addEventListener('change', () => send({ t: 'cfg', turnLimit: +el.optLimit.value }));
 el.btnAgain.addEventListener('click', () => send({ t: 'again' }));
-el.btnToLobby.addEventListener('click', () => { el.overlay.hidden = true; });
+el.btnToLobby.addEventListener('click', () => {
+  if (isHost()) { send({ t: 'lobby' }); return; }        // 방 전체가 대기실로 — 새 사람이 코드로 들어올 수 있다
+  el.overlay.hidden = true;
+  toast('방장이 대기실로 옮기면 함께 이동해요');
+});
 el.btnLeave.addEventListener('click', () => {
   send({ t: 'leave' });
   sessionStorage.removeItem('hg');
@@ -885,6 +947,16 @@ show('login');
    그래서 채팅을 여는 동안 입력칸을 눈에 띄게 꺼 두고, 보내면 바로 게임으로 돌려보낸다. */
 
 let chatUnread = 0;
+let chatRoom = null;       // 지금 채팅이 속한 방 — 방이 바뀌면 이전 방의 말을 들고 가지 않는다
+
+/** 새 방에 들어오면 채팅을 비운다. 안 그러면 전 방에서 오간 말이 새 방 채팅창에 그대로 남는다. */
+function chatReset() {
+  $('chatLog').textContent = '';
+  $('chat').hidden = true;
+  document.body.classList.remove('chatting');
+  chatUnread = 0; chatBadge(); chatPeekOff();
+  chatAway = 0; chatTitle();
+}
 const chatEsc = t => String(t).replace(/[&<>"']/g, c =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
