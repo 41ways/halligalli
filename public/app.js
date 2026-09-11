@@ -121,8 +121,11 @@ function show(which) {
   if (which === 'game') setTimeout(() => {
     if (document.body.classList.contains('chatting')) return;
     // 판 위의 다른 조작(테마 목록 등)을 쓰는 중이면 두고, 그 밖일 때만 입력칸으로
+    // 열어 둔 목록(SELECT)이나 글 쓰는 칸만 두고, 체크박스 따위에 머문 커서는 입력칸으로 데려온다
     const a = document.activeElement;
-    if (a && a !== el.entry && /^(SELECT|INPUT|TEXTAREA)$/.test(a.tagName)) return;
+    const typing = a && a !== el.entry && (a.tagName === 'SELECT' || a.tagName === 'TEXTAREA' ||
+      (a.tagName === 'INPUT' && !/^(checkbox|radio|button|range)$/.test(a.type)));
+    if (typing) return;
     el.entry.focus();
   }, 30);
 }
@@ -261,6 +264,8 @@ function onState(s) {
 
 const myP = () => S && S.players.find(p => p.id === me);
 const isHost = () => S && S.hostId === me;
+/** 판 위 조작을 마치면 커서를 입력칸으로 — 과일 이름·스페이스가 곧바로 먹게 */
+function backToEntry() { if (!el.scGame.hidden && !document.body.classList.contains('chatting')) el.entry.focus(); }
 
 /* ── 대기실 ── */
 function renderLobby() {
@@ -271,6 +276,7 @@ function renderLobby() {
       ${p.id === S.hostId ? '<span class="tagx">방장</span>' : ''}
       ${p.id === me ? '<span class="tagx">나</span>' : ''}
       ${p.bot ? '<span class="tagx">봇</span>' : ''}
+      ${!p.bot && !p.connected ? '<span class="tagx off">끊김</span>' : ''}
       <span class="sp"></span>
       ${isHost() && p.id !== me ? `<button class="x" data-kick="${p.id}" data-bot="${p.bot ? 1 : 0}">✕</button>` : ''}
     </div>`).join('');
@@ -697,6 +703,7 @@ function tryCall(raw) {
   }
   if (!S || S.phase !== 'playing') { el.entry.value = ''; return; }
   if (S.resolving) { el.entry.value = ''; return; }   // 판정 정지 구간 — 글자가 남지 않게 비운다
+  if (v === lastCall.v && Date.now() - lastCall.at < 700) return;   // 조합이 끝나며 같은 말이 또 들어온 것
   lastCall = { v, at: Date.now() };
   send({ t: 'call', word: v });
 }
@@ -704,6 +711,7 @@ let lastCall = { v: '', at: 0 };
 
 el.entry.addEventListener('input', e => tryCall(e.target.value));
 el.entry.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.isComposing || e.keyCode === 229)) return;   // 조합을 끝내는 Enter — 입력기가 처리하게 둔다
   if (e.key === 'Enter') {
     e.preventDefault();
     // 말이 완성되는 순간 input 이 이미 보냈다. 버릇처럼 누른 Enter 가 같은 말을 또 보내면
@@ -911,7 +919,7 @@ function applyTheme(v) {
   el.theme.value = v; el.themeGame.value = v; el.themeIntro.value = v;
 }
 el.theme.addEventListener('change', () => applyTheme(el.theme.value));
-el.themeGame.addEventListener('change', () => applyTheme(el.themeGame.value));
+el.themeGame.addEventListener('change', () => { applyTheme(el.themeGame.value); backToEntry(); });
 el.themeIntro.addEventListener('change', () => applyTheme(el.themeIntro.value));
 
 
@@ -931,7 +939,7 @@ function setLayout(mode) {
   el.bigToggle.checked = mode === 'D';
   if (S && S.phase !== 'lobby') renderGame();
 }
-el.bigToggle.addEventListener('change', () => setLayout(el.bigToggle.checked ? 'D' : 'C'));
+el.bigToggle.addEventListener('change', () => { setLayout(el.bigToggle.checked ? 'D' : 'C'); backToEntry(); });
 setLayout(layoutMode);
 el.btnGo.addEventListener('click', () => send({ t: 'go' }));
 el.btnSound.addEventListener('click', () => setMuted(!muted));
